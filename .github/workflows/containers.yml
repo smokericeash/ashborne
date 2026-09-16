@@ -1,0 +1,26 @@
+name: Container build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: containers-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare non-production CI environment
+        run: cp .env.example .env
+      - name: Validate Compose model
+        run: docker compose --profile demo config --quiet
+      - name: Build every KANDOR image
+        run: docker compose --profile demo build --pull
+

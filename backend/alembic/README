@@ -1,0 +1,1 @@
+KANDOR database migrations. Run `alembic upgrade head` before starting the API.

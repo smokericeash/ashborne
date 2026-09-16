@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kandor-server"
+version = "0.1.0"
+description = "KANDOR self-hosted security agent orchestration API"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "KANDOR Contributors" }]
+dependencies = [
+  "fastapi>=0.115.8,<1.0",
+  "uvicorn[standard]>=0.34.0,<1.0",
+  "SQLAlchemy>=2.0.38,<3.0",
+  "alembic>=1.14.1,<2.0",
+  "asyncpg>=0.30.0,<1.0",
+  "aiosqlite>=0.21.0,<1.0",
+  "pydantic>=2.10.6,<3.0",
+  "pydantic-settings>=2.7.1,<3.0",
+  "pwdlib[argon2]>=0.2.1,<1.0",
+  "PyJWT>=2.10.1,<3.0",
+  "email-validator>=2.2.0,<3.0",
+  "redis>=5.2.1,<7.0",
+  "typer>=0.15.1,<1.0",
+]
+
+[project.scripts]
+kandor = "app.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["app/cli.py", "app/main.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "RUF"]
+ignore = [
+  "B008",  # FastAPI dependency injection intentionally calls Depends in defaults.
+  "S101",  # Assertions are expected in tests.
+  "S104",  # The container server intentionally listens on all interfaces.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+exclude = ["alembic"]
+
+[[tool.mypy.overrides]]
+module = ["pwdlib.*", "redis.*"]
+ignore_missing_imports = true

@@ -1,0 +1,88 @@
+name: Backend and agent
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kandor_test
+          POSTGRES_PASSWORD: kandor_test_password
+          POSTGRES_DB: kandor_test
+        options: >-
+          --health-cmd "pg_isready -U kandor_test -d kandor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7.4-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+    env:
+      KANDOR_ENVIRONMENT: test
+      KANDOR_DATABASE_URL: postgresql+asyncpg://kandor_test:kandor_test_password@127.0.0.1:5432/kandor_test
+      KANDOR_REDIS_URL: redis://127.0.0.1:6379/15
+      KANDOR_SECRET_KEY: ci_only_signing_key_at_least_64_characters_long_00000000000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ./backend -r backend/requirements.txt
+      - name: Verify cross-component safety allowlist
+        run: python scripts/check_allowlist_sync.py
+      - name: Lint
+        working-directory: backend
+        run: python -m ruff check app tests
+      - name: Type check
+        working-directory: backend
+        run: python -m mypy app
+      - name: Migrate PostgreSQL
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Test
+        working-directory: backend
+        run: python -m pytest --cov=app --cov-report=term-missing
+
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: agent/pyproject.toml
+      - name: Install agent
+        run: python -m pip install --upgrade pip && python -m pip install -e "./agent[dev]"
+      - name: Lint
+        run: python -m ruff check agent/kandor_agent agent/tests
+      - name: Type check
+        run: python -m mypy agent/kandor_agent
+      - name: Test
+        run: python -m pytest agent/tests --cov=agent/kandor_agent --cov-report=term-missing
+      - name: Compile
+        run: python -m compileall -q agent/kandor_agent

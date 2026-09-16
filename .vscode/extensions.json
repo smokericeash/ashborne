@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "ms-azuretools.vscode-docker",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "redhat.vscode-yaml"
+  ]
+}
