@@ -203,7 +203,6 @@ networks:
     internal: true
   kandor-proxy:
     driver: bridge
-    internal: true
     ipam:
       config:
         - subnet: ${KANDOR_PROXY_SUBNET:-172.30.254.0/28}
