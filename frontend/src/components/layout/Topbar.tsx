@@ -23,11 +23,11 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         <Radio
           className={cn(
             "h-3.5 w-3.5",
-            connected ? "text-kandor-400" : "text-slate-600",
+            connected ? "text-ashborne-400" : "text-slate-600",
           )}
         />
         <span className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500">
-          Live telemetry
+          Live operation stream
         </span>
         <span
           className={cn(
@@ -45,7 +45,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-kandor-400" />
+          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-ashborne-400" />
         </Button>
         <div className="relative">
           <button
@@ -53,7 +53,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             onClick={() => setMenuOpen((open) => !open)}
             aria-expanded={menuOpen}
           >
-            <span className="grid h-7 w-7 place-items-center rounded-md border border-kandor-400/20 bg-kandor-400/10 text-[10px] font-bold text-kandor-200">
+            <span className="grid h-7 w-7 place-items-center rounded-md border border-ashborne-400/20 bg-ashborne-400/10 text-[10px] font-bold text-ashborne-200">
               {initials(user?.display_name || user?.email)}
             </span>
             <span className="hidden max-w-36 sm:block">

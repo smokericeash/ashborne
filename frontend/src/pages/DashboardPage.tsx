@@ -123,7 +123,7 @@ function MetricCard({
   };
   return (
     <Card className="group relative overflow-hidden p-4 transition hover:-translate-y-0.5 hover:border-slate-600/60">
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-kandor-400/[.025] blur-2xl transition group-hover:bg-kandor-400/[.06]" />
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-ashborne-400/[.025] blur-2xl transition group-hover:bg-ashborne-400/[.06]" />
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[.13em] text-slate-500">
@@ -158,17 +158,17 @@ export function DashboardPage() {
     return (
       <>
         <PageHeader
-          eyebrow="Command overview"
-          title="Operational dashboard"
-          description="Live posture across the KANDOR agent fabric."
+          eyebrow="Authorized operation"
+          title="Command center"
+          description="Live lab-host posture, typed task execution, and operator accountability."
         />
-        <Spinner label="Synchronizing telemetry" />
+        <Spinner label="Synchronizing lab state" />
       </>
     );
   if (resource.error && !resource.data)
     return (
       <>
-        <PageHeader eyebrow="Command overview" title="Operational dashboard" />
+        <PageHeader eyebrow="Authorized operation" title="Command center" />
         <Card>
           <ErrorState
             error={resource.error}
@@ -189,9 +189,9 @@ export function DashboardPage() {
   return (
     <div className="animate-slide-in">
       <PageHeader
-        eyebrow="Command overview"
-        title="Operational dashboard"
-        description="Live posture across the KANDOR agent fabric."
+        eyebrow="Authorized operation"
+        title="Command center"
+        description="Live lab-host posture, typed task execution, and operator accountability."
         actions={
           <div className="flex items-center gap-2 rounded-lg border border-line bg-panel/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500">
             <span
@@ -204,7 +204,7 @@ export function DashboardPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          label="Total agents"
+          label="Lab hosts"
           value={metrics.total_agents}
           detail={`${metrics.online_agents} currently reporting`}
           icon={ShieldCheck}
@@ -265,7 +265,7 @@ export function DashboardPage() {
       <div className="mt-4 grid gap-4 xl:grid-cols-[.82fr_1.18fr]">
         <Card className="min-w-0 overflow-hidden">
           <SectionTitle
-            title="Agent posture"
+            title="Lab-host posture"
             description="Current heartbeat-derived status"
           />
           <div className="grid h-[290px] grid-cols-[1fr_130px] items-center p-4">
@@ -311,8 +311,8 @@ export function DashboardPage() {
               </ResponsiveContainer>
             ) : (
               <EmptyState
-                title="No agents yet"
-                description="Enroll an agent to populate posture telemetry."
+                title="No lab hosts yet"
+                description="Enroll a lab host to populate its posture view."
               />
             )}
             <div className="space-y-4">
@@ -417,7 +417,7 @@ export function DashboardPage() {
         <Card className="min-w-0 overflow-hidden">
           <SectionTitle
             title="Operating systems"
-            description="Enrolled agent distribution"
+            description="Enrolled lab-host distribution"
           />
           <div className="h-64 p-4">
             {metrics.agents_by_os.length ? (
@@ -465,7 +465,7 @@ export function DashboardPage() {
               </>
             ) : (
               <EmptyState
-                title="No OS telemetry"
+                title="No OS inventory"
                 description="Distribution appears as agents report inventory."
               />
             )}
@@ -491,7 +491,7 @@ export function DashboardPage() {
               </>
             ) : (
               <EmptyState
-                title="No version telemetry"
+                title="No version inventory"
                 description="Version distribution appears as agents report."
               />
             )}
@@ -564,13 +564,13 @@ export function DashboardPage() {
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card className="overflow-hidden">
           <SectionTitle
-            title="Latest agent activity"
+            title="Latest lab-host activity"
             action={
               <Link
-                className="flex items-center gap-1 text-[11px] font-semibold text-kandor-400 hover:text-kandor-300"
+                className="flex items-center gap-1 text-[11px] font-semibold text-ashborne-400 hover:text-ashborne-300"
                 to="/agents"
               >
-                All agents <ArrowRight className="h-3 w-3" />
+                All lab hosts <ArrowRight className="h-3 w-3" />
               </Link>
             }
           />
@@ -604,7 +604,7 @@ export function DashboardPage() {
             </div>
           ) : (
             <EmptyState
-              title="No agent activity"
+              title="No lab-host activity"
               description="New enrollments and heartbeats will be shown here."
             />
           )}
@@ -615,7 +615,7 @@ export function DashboardPage() {
             title="Recent task activity"
             action={
               <Link
-                className="flex items-center gap-1 text-[11px] font-semibold text-kandor-400 hover:text-kandor-300"
+                className="flex items-center gap-1 text-[11px] font-semibold text-ashborne-400 hover:text-ashborne-300"
                 to="/tasks"
               >
                 All tasks <ArrowRight className="h-3 w-3" />
@@ -650,7 +650,7 @@ export function DashboardPage() {
           ) : (
             <EmptyState
               title="No recent tasks"
-              description="Allowlisted diagnostic work will appear here."
+              description="Authorized typed lab actions will appear here."
             />
           )}
         </Card>

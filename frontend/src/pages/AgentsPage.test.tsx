@@ -12,7 +12,7 @@ const zulu: Agent = {
   uuid: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   name: "Zulu sensor",
   hostname: "zulu-host",
-  username: "svc-kandor",
+  username: "svc-ashborne",
   operating_system: "Linux",
   os_version: "Debian 13",
   architecture: "x86_64",
@@ -51,7 +51,7 @@ describe("AgentsPage", () => {
 
     expect(await screen.findByText("Zulu sensor")).toBeInTheDocument();
     const body = screen
-      .getByRole("table", { name: "KANDOR agents" })
+      .getByRole("table", { name: "ASHBORNE lab hosts" })
       .querySelector("tbody")!;
     let rows = within(body).getAllByRole("row");
     expect(rows[0]).toHaveTextContent("Zulu sensor");
@@ -60,7 +60,7 @@ describe("AgentsPage", () => {
     expect(screen.getByText("linux")).toBeInTheDocument();
     expect(screen.getByText("pci")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Search agents"), "edge{Enter}");
+    await user.type(screen.getByLabelText("Search lab hosts"), "edge{Enter}");
     await waitFor(() =>
       expect(list).toHaveBeenCalledWith(
         expect.objectContaining({ search: "edge", skip: 0 }),
@@ -79,7 +79,9 @@ describe("AgentsPage", () => {
       ),
     );
 
-    await user.click(screen.getByRole("button", { name: "Sort by Agent" }));
+    await user.click(
+      screen.getByRole("button", { name: "Sort by Enrollment" }),
+    );
     await waitFor(() =>
       expect(list).toHaveBeenCalledWith(
         expect.objectContaining({ sort_by: "name", sort_order: "asc" }),

@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("KANDOR UI boundary", error, info.componentStack);
+    console.error("ASHBORNE UI boundary", error, info.componentStack);
   }
 
   render() {
@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             Interface recovery required
           </h1>
           <p className="mt-2 max-w-md text-sm text-slate-500">
-            KANDOR encountered an unexpected interface error. Your server and
+            ASHBORNE encountered an unexpected interface error. Your server and
             agents were not affected.
           </p>
           <Button className="mt-6" onClick={() => window.location.reload()}>

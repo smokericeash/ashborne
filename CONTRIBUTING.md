@@ -1,6 +1,6 @@
-# Contributing to KANDOR
+# Contributing to ASHBORNE
 
-Thank you for improving KANDOR. Contributions must preserve its defensive, transparent, allowlist-only design.
+Thank you for improving ASHBORNE. Contributions must preserve its authorization-first, transparent, closed-task design.
 
 ## Development workflow
 
@@ -15,12 +15,13 @@ Commits should be small enough to review and should not contain generated depend
 
 ## Safety acceptance criteria
 
-Changes that introduce arbitrary commands, uploaded executable handling, scripting interpreters, process injection, persistence, credential access, evasion, exploitation, lateral movement, covert transport, or destructive operations will not be accepted. New diagnostic task types require all of:
+Changes that introduce arbitrary commands, uploaded executable handling, scripting interpreters, process injection, persistence, credential access, evasion, exploitation, lateral movement, covert transport, or destructive operations will not be accepted. New lab action types require all of:
 
 - a dedicated, bounded handler with no shell invocation;
 - an explicit shared enum entry in API, agent, and UI;
 - a typed parameter/result schema and output limits;
 - RBAC and audit coverage;
+- explicit authorized-scope behavior and documentation;
 - unit tests for valid and invalid requests;
 - documentation of collected data and platform behavior.
 
@@ -31,4 +32,3 @@ Modify SQLAlchemy models, generate a reviewed Alembic revision, test upgrade fro
 ## Reporting bugs
 
 Use a minimal reproduction with redacted logs. For vulnerabilities, follow `SECURITY.md` and do not open a public issue before coordinated disclosure.
-

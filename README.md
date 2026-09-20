@@ -1,190 +1,269 @@
-# KANDOR
+# ASHBORNE
 
-**KANDOR — Self-Hosted Security Agent Orchestration Platform**
+**Adversary Emulation & Offensive Security Lab Platform**
 
-KANDOR is a defensive-security lab platform for managing transparent, least-privilege diagnostic agents from a modern web console. It demonstrates authenticated agent enrollment, health telemetry, asynchronous allowlisted tasking, structured results, live events, RBAC, and immutable audit history without providing remote-shell or arbitrary-code-execution capabilities.
+ASHBORNE is a self-hosted operator console for authorized adversary-emulation,
+red-team lab, and pentesting training workflows. It combines authenticated agent
+enrollment, strongly typed local-host actions, shared task state, live events,
+RBAC, and an immutable audit trail without exposing a general remote shell.
 
-> KANDOR is intended for education, controlled lab use, and defensive engineering portfolios. Only deploy agents on systems you own or are explicitly authorized to monitor.
+> **Authorized lab use only.** Deploy agents only on systems you own or are
+> explicitly authorized to test. Every operator task requires an in-scope
+> confirmation and is written to the audit timeline.
 
-## What is included
+## Preview
 
-- A FastAPI management plane with PostgreSQL persistence, Redis-backed coordination, OpenAPI documentation, request validation, health checks, and structured JSON logs.
-- A React and TypeScript SOC-style console with dashboards, searchable records, role-aware actions, and live Server-Sent Events (SSE).
-- A lightweight Python agent whose dispatcher maps a closed task enum to dedicated local diagnostic functions.
-- Argon2 password hashing, short-lived JWT access tokens, rotating/revocable refresh sessions, RBAC, agent credential hashing, and expiring one-time enrollment tokens.
-- Agent heartbeat classification (`ONLINE`, `DEGRADED`, `OFFLINE`), task lifecycle tracking, safe structured results, and an append-only audit trail.
-- Docker Compose deployment, a scaled demo-agent profile, migrations, tests, lint/type checks, and pull-request CI.
+<!-- Replace this placeholder with an ASHBORNE dashboard/banner image -->
 
-## Safety boundary
+![ASHBORNE Preview](docs/screenshots/ashborne-preview.png)
 
-KANDOR is deliberately **not** a remote administration tool. Operators choose a task type from this closed set:
+## Overview
 
-`SYSTEM_INFO`, `HOSTNAME`, `CURRENT_USER`, `CPU_INFO`, `MEMORY_USAGE`, `DISK_USAGE`, `NETWORK_INTERFACES`, `UPTIME`, `PROCESS_INVENTORY`, `INSTALLED_SOFTWARE`, `LISTENING_PORTS`, `AGENT_HEALTH`, and `PING`.
+ASHBORNE retains the proven management-plane architecture and changes the
+operator experience from endpoint monitoring to bounded offensive-security
+training. The platform is designed around five principles:
 
-The API validates this enum, the agent validates it again, and every type is implemented by a specific Python handler. Task payloads cannot contain commands or executable paths. Unknown values are rejected before dispatch. The agent does not install persistence, hide itself, bypass security controls, or disable TLS verification in production.
+- **Explicit scope:** task creation requires confirmation that the enrolled host
+  is part of an authorized lab.
+- **Typed execution:** the API and agent independently validate a closed action
+  enum and per-action parameter schema.
+- **Transparent agents:** no covert transport, masquerading, persistence, or
+  security-control bypass is implemented.
+- **Shared operations:** operators see the same lab hosts, task lifecycle,
+  structured results, Server-Sent Events (SSE), and timeline.
+- **Accountability:** role-aware actions and immutable audit events retain the
+  actor, target host, task type, source address, and scope confirmation.
+
+The operator catalog is organized as follows:
+
+| Area | Included typed actions |
+|---|---|
+| Recon | Quick Recon, System Info, Hostname, Current User, Uptime |
+| Host Enumeration | CPU, memory, disks, processes, installed software |
+| Privilege Enumeration | Security Context |
+| Files | File System Overview with fixed-location metadata only |
+| Network | Interfaces, connections, route table, listening ports |
+| Agent Control | Agent Health and authenticated Ping |
+
+`QUICK_RECON` is a one-click passive baseline. It gathers bounded local system,
+security-context, interface, listener, route, uptime, and fixed-location metadata.
+It performs no active network probing, DNS resolution, file-content collection,
+payload execution, or arbitrary command dispatch.
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    Operator[Administrator / Operator / Viewer] -->|HTTPS| UI[KANDOR Web UI]
-    UI -->|JWT + JSON / SSE| API[KANDOR API]
+    Operator[Administrator / Operator / Viewer] -->|HTTPS| UI[ASHBORNE Web UI]
+    UI -->|JWT + JSON / SSE| API[FastAPI management plane]
     API --> DB[(PostgreSQL)]
-    API --> Redis[(Redis event coordination)]
-    API --> Events[SSE event stream]
-    API --> Queue[Validated task queue]
-    Agents[KANDOR agents] -->|TLS + agent credential| API
-    Queue -->|Allowlisted task envelope| Agents
-    Agents -->|Structured diagnostic result| API
+    API --> Redis[(Redis coordination)]
+    API --> Audit[Immutable audit timeline]
+    API --> Queue[Validated typed-task queue]
+    Agents[Transparent ASHBORNE agents] -->|TLS + agent credential| API
+    Queue -->|Closed action enum| Agents
+    Agents -->|Bounded structured result| API
 ```
 
-The management plane never sends a command line. A task is a typed record whose state advances through `QUEUED`, `DISPATCHED`, `RUNNING`, and a terminal state (`SUCCESS`, `FAILED`, `CANCELLED`, or `EXPIRED`). See [Architecture](docs/ARCHITECTURE.md) for trust boundaries and sequence diagrams.
+The existing authentication, RBAC, one-time enrollment, task lifecycle,
+PostgreSQL, Redis, SSE, audit, React/TypeScript, and test architecture are retained.
+A task advances through `QUEUED`, `DISPATCHED`, `RUNNING`, and one terminal state:
+`SUCCESS`, `FAILED`, `CANCELLED`, or `EXPIRED`.
 
-## Quick start with Docker
+The Compose topology uses three networks:
 
-Requirements: Docker Engine/Desktop with Compose v2, at least 2 GB of free memory, and ports 3000 and 8000 available.
+| Network | Purpose | Internal |
+|---|---|---|
+| `ashborne-data` | Backend to PostgreSQL/Redis | Yes |
+| `ashborne-agent` | Demo agents to backend | Yes |
+| `ashborne-proxy` | Frontend/backend and host-published ports | **No** |
+
+Keeping `ashborne-proxy` host-facing is intentional: setting it to
+`internal: true` prevents the published UI and API ports from working on the host.
+
+See [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), and the
+[Threat model](docs/THREAT_MODEL.md) for the detailed trust boundaries.
+
+## Quick start
+
+Requirements: Docker Engine/Desktop with Compose v2, Python 3.12+ for helper
+scripts, at least 2 GB free memory, and host ports 3000 and 8000 available.
 
 ```bash
-git clone <your-kandor-repository-url> kandor
-cd kandor
-cp .env.example .env
-# Edit .env: replace every CHANGE_ME value before using anything except a local lab.
-docker compose up --build
+git clone <your-ashborne-repository-url> ashborne
+cd ashborne
+python scripts/generate_env.py
+docker compose up --build -d
+docker compose ps
 ```
 
-For generated independent local secrets instead of editing placeholders manually, run `python scripts/generate_env.py` in place of the copy step.
-
-Open:
-
-- Web console: <http://localhost:3000>
-- API documentation: <http://localhost:8000/docs>
-- API readiness: <http://localhost:8000/health/ready>
-
-For the sample `.env`, the development users are `admin@example.local`, `operator@example.local`, and `viewer@example.local`; their passwords are the corresponding environment values. KANDOR never embeds those passwords in application code or a database migration.
-
-Stop the stack with `docker compose down`. To also discard local database and agent volumes, run `make reset-db`; this is intentionally a separate destructive command.
-
-## Demo lab
-
-Start the core services plus five isolated diagnostic agents:
+Verify both published host mappings and backend readiness:
 
 ```bash
-docker compose --profile demo up --build --scale kandor-agent=5
-```
-
-Each replica gets its own container filesystem and UUID, sends heartbeats, and only inventories its own container. Demo auto-enrollment requires `KANDOR_ENVIRONMENT=development` and `KANDOR_DEMO_BOOTSTRAP_SECRET`; the endpoint is disabled in every other environment. Normal deployments use one-time enrollment tokens.
-
-## Enroll a real agent
-
-1. Sign in as an administrator and create an enrollment token in **Settings → Enrollment tokens**, or run `kandor create-enrollment-token` in the backend container.
-2. Install the agent on an authorized host.
-3. Enroll once and then run it:
-
-```bash
-python -m pip install ./agent
-kandor-agent enroll --server https://kandor.example.local --token '<one-time-token>'
-kandor-agent run
-```
-
-The token is short-lived and single-use. The returned agent credential is stored locally with restrictive permissions where the operating system supports them. Production agents verify server certificates; use a trusted internal CA or publicly trusted certificate, never an insecure verification flag.
-
-## Local development
-
-Python 3.12+, Node.js 22.12+, PostgreSQL 16+, and Redis 7+ are recommended.
-
-```bash
-make install
-cp .env.example .env
-make backend       # API with reload
-make frontend      # Vite development server
-make test
-```
-
-Useful commands:
-
-| Command | Purpose |
-|---|---|
-| `make install` | Install backend, agent, and frontend development dependencies |
-| `make dev` | Start the full Compose development stack |
-| `make backend` | Run the API locally |
-| `make frontend` | Run the Vite frontend |
-| `make test` | Run backend, agent, and frontend tests |
-| `make lint` | Run Python and TypeScript linters |
-| `make format` | Apply supported formatters |
-| `make build` | Compile Python sources, build the frontend, and validate Compose |
-| `make up` / `make down` | Manage the Compose stack |
-| `make logs` | Follow Compose service logs |
-| `make reset-db` | Delete Compose volumes after an explicit confirmation variable |
-
-VS Code recommendations live in `.vscode/`. The API defaults to <http://localhost:8000>, while Vite proxies `/api` and `/health` during development.
-
-## Administration CLI
-
-The backend package exposes `kandor` commands backed by the same services as the API:
-
-```bash
-kandor status
-kandor create-user
-kandor create-enrollment-token
-kandor list-agents
-kandor list-tasks
-```
-
-Run `kandor --help` for command flags. User passwords are collected through protected prompts when omitted; avoid passing secrets as command-line arguments because shell history may retain them.
-
-## API overview
-
-All application routes are below `/api/v1/`:
-
-- `/auth` — login, refresh rotation, logout, and current session.
-- `/users` — administrator-only account and role management.
-- `/agents` — inventory, details, heartbeats, and authenticated agent polling.
-- `/enrollment` — administrative token lifecycle and agent enrollment.
-- `/tasks` — validated creation, lifecycle transitions, structured results, and cancellation.
-- `/audit` — filtered, paginated audit events.
-- `/dashboard` — aggregate health/task/version/OS/activity metrics.
-- `/events` — authenticated SSE updates.
-- `/settings` — persisted operational thresholds.
-
-Interactive OpenAPI docs are served at `/docs` in development and test deployments; production disables the CDN-backed HTML UI while retaining `/openapi.json`. Agent credentials and user JWTs are separate authentication domains and are not interchangeable. See [API and agent protocol](docs/API.md).
-
-## Testing and validation
-
-```bash
-make test
-make lint
-make build
-docker compose config --quiet
-docker compose build
+curl --fail http://127.0.0.1:3000/
+curl --fail http://127.0.0.1:8000/health/live
+curl --fail http://127.0.0.1:8000/health/ready
 python scripts/smoke_test.py
 ```
 
-The suites cover authentication failures and refresh rotation, RBAC denials, enrollment expiry/reuse/revocation, heartbeat status transitions, allowlist enforcement, task lifecycle/results, audit events, agent reconnect behavior, frontend protected routes and core views, type checking, and production builds. The smoke script exercises those contracts against a running stack without printing credentials. CI runs component checks and container builds on every pull request.
+Open:
 
-## Security model and limitations
+- Operator console: <http://localhost:3000>
+- API documentation: <http://localhost:8000/docs>
+- Readiness check: <http://localhost:8000/health/ready>
 
-- KANDOR assumes the server, database, and Redis instance are in a trusted management network. Terminate TLS at a hardened reverse proxy or load balancer and use network policy/firewall rules in production.
-- JWT signing secrets, database passwords, seed passwords, demo secrets, and TLS private keys belong in a secret manager or protected environment—not Git.
-- The browser keeps the access token in memory and uses rotation for refresh sessions; deployments should prefer secure, `HttpOnly`, `SameSite` cookies where cross-origin architecture permits.
-- Diagnostic inventory can itself be sensitive. Apply least privilege, minimize retention, and restrict viewer/operator membership.
-- The append-only application audit policy protects against normal API mutation. Database superusers can still alter data; forward logs to write-once external storage for stronger non-repudiation.
-- Container demo agents observe their containers, not their host. KANDOR is not an EDR, SIEM, vulnerability scanner, exploitation framework, or remote shell.
+Development identities are `admin@example.local`, `operator@example.local`, and
+`viewer@example.local`. Their generated passwords are stored in the untracked
+`.env` file under the matching `ASHBORNE_*_PASSWORD` variables.
 
-Read [Security policy](SECURITY.md), [Threat model](docs/THREAT_MODEL.md), and [Deployment guide](docs/DEPLOYMENT.md) before operating outside a workstation lab.
+Stop the stack with `docker compose down`. To discard local database and agent
+volumes, use the separately guarded `make reset-db CONFIRM=reset-ashborne` command.
 
-## Project status
+## Demo lab
 
-KANDOR `0.1.0` is an educational reference implementation. Review the [changelog](CHANGELOG.md) and open issues for release-specific notes. Contributions are welcome under the [contribution guide](CONTRIBUTING.md).
+Start the core stack and five isolated lab agents:
+
+```bash
+docker compose --profile demo up --build -d --scale ashborne-agent=5
+docker compose ps
+python scripts/smoke_test.py
+```
+
+Each replica receives its own anonymous state volume and identity, checks in over
+the internal agent network, and can inspect only its own container. Demo automatic
+enrollment requires `ASHBORNE_ENVIRONMENT=development` plus the generated
+`ASHBORNE_DEMO_BOOTSTRAP_SECRET`; the endpoint is disabled in other environments.
+
+Suggested training flow:
+
+1. Sign in as an operator.
+2. Open **Lab Hosts** and select an online demo host.
+3. Open **Tasks**, choose **Quick Recon**, review the authorization confirmation,
+   and queue the action.
+4. Watch the task move through its lifecycle and inspect the structured result.
+5. Open **Timeline / Audit** and locate the matching `TASK_CREATED`, dispatch,
+   start, and completion events.
+
+## Agent workflow
+
+For a non-demo host, an administrator creates a short-lived, single-use enrollment
+token in **Settings → Enrollment tokens** or with the backend CLI. Install and
+enroll the agent only on an authorized lab system:
+
+```bash
+python -m pip install ./agent
+ashborne-agent enroll --server https://ashborne.example.local --token '<one-time-token>'
+ashborne-agent run
+```
+
+The returned machine credential is stored locally with restrictive permissions
+where supported. Production agents require valid TLS verification. The agent
+polls for typed tasks, validates each task again, executes a dedicated Python/
+`psutil` handler, caps the result size, and durably retries failed result delivery.
+
+The backend administration CLI is installed as `ashborne`:
+
+```bash
+ashborne status
+ashborne create-user
+ashborne create-enrollment-token
+ashborne list-agents
+ashborne list-tasks
+```
+
+## Development setup
+
+Recommended versions are Python 3.12+, Node.js 22.12+, PostgreSQL 16+, and Redis
+7+. For the standard local workflow:
+
+```bash
+make install
+python scripts/generate_env.py
+make test
+make lint
+make build
+```
+
+Run components independently with `make backend` and `make frontend`, or use
+`make dev` for Compose. The backend container applies `alembic upgrade head`
+before startup. A new ASHBORNE deployment uses the included initial schema; there
+is no cross-project database migration because this is a separate project and data store.
+
+Useful direct checks:
+
+```bash
+python scripts/check_allowlist_sync.py
+python scripts/check_compose_isolation.py
+cd backend && python -m pytest
+cd ../agent && python -m pytest
+cd ../frontend && npm test -- --run && npm run build
+docker compose --profile demo config --quiet
+```
+
+## Security model
+
+- Management users authenticate separately from enrolled agents. Access tokens
+  are short-lived; refresh tokens rotate and can be revoked.
+- RBAC separates administrators, operators, and read-only viewers.
+- Enrollment tokens expire, are single-use, and are stored only as hashes.
+- Task types and parameters are validated by both the API and the agent.
+- Operators must confirm authorized scope for each task; the confirmation is
+  included in `TASK_CREATED` audit metadata.
+- The agent contains no subprocess or shell execution surface and accepts no
+  command text or executable paths.
+- Results are structured JSON with collection and size bounds.
+- Data/agent networks remain isolated while the proxy network permits intentional
+  loopback host publishing.
+- Production deployments should terminate TLS at a hardened ingress, keep secrets
+  in a secret manager, forward audit events to protected storage, and restrict
+  management access by network policy.
+
+ASHBORNE borrows only high-level workflow ideas from established operator tools:
+shared sessions/task state and event history are documented by
+[Cobalt Strike's team operations guide](https://hstechdocs.helpsystems.com/manuals/cobaltstrike/current/userguide/content/topics/welcome_distributed-and-team-ops.htm),
+while Realm publicly emphasizes multi-host management, reliability, automation,
+and a web operator interface in its
+[project overview](https://github.com/spellshift/realm). ASHBORNE intentionally
+does **not** reproduce payload, covert-channel, loader, credential-access,
+persistence, evasion, lateral-movement, or unrestricted scripting features.
+
+Read [SECURITY.md](SECURITY.md), [Deployment](docs/DEPLOYMENT.md), and the
+[Threat model](docs/THREAT_MODEL.md) before using ASHBORNE outside a disposable
+workstation lab.
+
+## Limitations
+
+- ASHBORNE is an educational adversary-emulation lab, not a covert C2 framework,
+  exploit framework, vulnerability scanner, EDR, or SIEM.
+- Current network actions are passive local observations. Active port scanning,
+  remote exploitation, credential collection, phishing, payload generation,
+  pivoting, and lateral movement are intentionally absent.
+- File workflows report metadata for fixed local locations and never return file
+  contents or accept arbitrary paths.
+- The route-table handler currently reads Linux `/proc` data; unsupported systems
+  return an explicit `supported: false` result.
+- Container demo agents observe their containers, not the Docker host.
+- Application-level append-only controls cannot stop a PostgreSQL superuser from
+  altering records; forward audit data externally for stronger non-repudiation.
+- A real Docker runtime is required for container, published-port, and healthcheck
+  verification; static Compose validation alone is not equivalent.
 
 ## Screenshots
 
-Screenshots are intentionally generated from the running application so they reflect the checked-out version. Add captures to `docs/screenshots/` after starting the demo profile:
+Place version-matched captures in `docs/screenshots/`:
 
-- Dashboard overview
-- Agent detail and heartbeat history
-- Allowlisted task result
-- Audit event search
+- `ashborne-preview.png` — command-center banner or dashboard
+- `lab-hosts.png` — scoped host inventory
+- `quick-recon.png` — typed action and structured result
+- `timeline-audit.png` — operation timeline
 
-## License and name
+The directory contains its own README so it remains tracked before final captures
+are added.
 
-Released under the MIT License. KANDOR uses an original visual identity and does not include or claim affiliation with copyrighted Superman artwork, logos, fonts, or other franchise assets.
+## License
+
+Released under the [MIT License](LICENSE).
+
+ASHBORNE is an independent project. Cobalt Strike and Realm are referenced only
+for comparative product research; their names and trademarks belong to their
+respective owners.

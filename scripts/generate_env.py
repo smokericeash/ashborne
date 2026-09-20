@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a local KANDOR .env with independent cryptographic secrets."""
+"""Create a local ASHBORNE .env with independent cryptographic secrets."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import argparse
 import secrets
 import string
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / ".env.example"
@@ -20,7 +19,7 @@ def random_value(length: int = 48) -> str:
 
 
 def random_password(length: int = 24) -> str:
-    """Return a random password that always satisfies KANDOR's class policy."""
+    """Return a random password that always satisfies ASHBORNE's class policy."""
 
     if length < 3:
         raise ValueError("password length must be at least 3")
@@ -35,7 +34,7 @@ def random_password(length: int = 24) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate a local KANDOR .env")
+    parser = argparse.ArgumentParser(description="Generate a local ASHBORNE .env")
     parser.add_argument(
         "--force",
         action="store_true",
@@ -44,7 +43,9 @@ def main() -> int:
     args = parser.parse_args()
 
     if TARGET.exists() and not args.force:
-        parser.error(f"{TARGET} already exists; use --force only if replacement is intended")
+        parser.error(
+            f"{TARGET} already exists; use --force only if replacement is intended"
+        )
 
     database_admin_password = random_value()
     database_app_password = random_value()
@@ -53,7 +54,9 @@ def main() -> int:
         "CHANGE_ME_local_database_admin_password": database_admin_password,
         "CHANGE_ME_local_database_app_password": database_app_password,
         "CHANGE_ME_local_redis_password": redis_password,
-        "CHANGE_ME_64_character_random_signing_secret_0000000000000000000000": random_value(72),
+        "CHANGE_ME_64_character_random_signing_secret_0000000000000000000000": random_value(
+            72
+        ),
         "CHANGE_ME_admin_development_password_1": random_password(),
         "CHANGE_ME_operator_development_password_1": random_password(),
         "CHANGE_ME_viewer_development_password_1": random_password(),
@@ -71,7 +74,9 @@ def main() -> int:
         pass
 
     print(f"Created {TARGET}")
-    print("Development account passwords are stored in that file; protect it and never commit it.")
+    print(
+        "Development account passwords are stored in that file; protect it and never commit it."
+    )
     return 0
 
 

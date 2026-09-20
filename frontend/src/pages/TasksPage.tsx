@@ -26,9 +26,14 @@ import {
   humanize,
 } from "../lib/utils";
 import { api } from "../services/api";
-import { TASK_STATUSES, TASK_TYPES, type KandorTask } from "../types";
+import {
+  TASK_CATEGORIES,
+  TASK_CATEGORY_BY_TYPE,
+  TASK_STATUSES,
+  type AshborneTask,
+} from "../types";
 
-function taskDuration(task: KandorTask) {
+function taskDuration(task: AshborneTask) {
   if (!task.started_at) return "—";
   const end = task.completed_at
     ? new Date(task.completed_at).getTime()
@@ -48,7 +53,7 @@ export function TasksPage() {
   const [status, setStatus] = useState("");
   const [taskType, setTaskType] = useState("");
   const [skip, setSkip] = useState(0);
-  const [selected, setSelected] = useState<KandorTask | null>(null);
+  const [selected, setSelected] = useState<AshborneTask | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   const resource = useResource(
@@ -113,9 +118,9 @@ export function TasksPage() {
   return (
     <div className="animate-slide-in">
       <PageHeader
-        eyebrow="Dispatch ledger"
+        eyebrow="Operator dispatch ledger"
         title="Tasks"
-        description="Track every allowlisted diagnostic from request through structured result."
+        description="Track every authorized, typed lab action from request through structured result."
       />
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-line/70 p-4 xl:flex-row">
@@ -169,10 +174,14 @@ export function TasksPage() {
               }}
             >
               <option value="">All task types</option>
-              {TASK_TYPES.map((item) => (
-                <option key={item} value={item}>
-                  {humanize(item)}
-                </option>
+              {Object.entries(TASK_CATEGORIES).map(([category, taskTypes]) => (
+                <optgroup key={category} label={category}>
+                  {taskTypes.map((item) => (
+                    <option key={item} value={item}>
+                      {humanize(item)}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </Select>
             {hasFilters && (
@@ -193,11 +202,11 @@ export function TasksPage() {
         ) : resource.data?.items.length ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full" aria-label="KANDOR tasks">
+              <table className="w-full" aria-label="ASHBORNE tasks">
                 <thead className="border-b border-line/70 bg-void/25">
                   <tr>
-                    <th className="table-heading">Diagnostic</th>
-                    <th className="table-heading">Target agent</th>
+                    <th className="table-heading">Lab action</th>
+                    <th className="table-heading">Target host</th>
                     <th className="table-heading">Requested by</th>
                     <th className="table-heading">Created</th>
                     <th className="table-heading">Duration</th>
@@ -217,13 +226,16 @@ export function TasksPage() {
                         <p className="font-mono text-xs font-medium text-slate-200">
                           {task.task_type}
                         </p>
+                        <Badge className="mt-1">
+                          {TASK_CATEGORY_BY_TYPE[task.task_type]}
+                        </Badge>
                         <p className="mt-1 max-w-40 truncate font-mono text-[9px] text-slate-700">
                           {task.id}
                         </p>
                       </td>
                       <td className="table-cell">
                         <Link
-                          className="text-slate-300 hover:text-kandor-300"
+                          className="text-slate-300 hover:text-ashborne-300"
                           to={`/agents/${task.agent_id}`}
                         >
                           {task.agent_name || task.agent_id}
@@ -270,7 +282,7 @@ export function TasksPage() {
             description={
               hasFilters
                 ? "Adjust or clear the active task filters."
-                : "Allowlisted diagnostics issued from an agent detail page will appear here."
+                : "Authorized lab actions issued from a host detail page will appear here."
             }
             icon={<ClipboardList className="h-5 w-5" />}
           />
@@ -316,6 +328,9 @@ export function TasksPage() {
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
               <Badge>{humanize(selected.task_type)}</Badge>
+              <Badge tone="danger">
+                {TASK_CATEGORY_BY_TYPE[selected.task_type]}
+              </Badge>
               <span>Created {formatDate(selected.created_at)}</span>
               {selected.completed_at && (
                 <span>· Completed {formatDate(selected.completed_at)}</span>

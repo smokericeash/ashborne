@@ -1,4 +1,4 @@
-# KANDOR developer guide
+# ASHBORNE developer guide
 
 ## Prerequisites
 

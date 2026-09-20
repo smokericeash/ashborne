@@ -1,4 +1,4 @@
-# KANDOR API and agent protocol
+# ASHBORNE API and agent protocol
 
 The running server publishes the authoritative OpenAPI description at `/openapi.json`. Development and test deployments also expose interactive Swagger documentation at `/docs`; production disables that CDN-backed HTML route. This document explains protocol invariants that clients must preserve.
 
@@ -15,7 +15,7 @@ Use `Authorization: Bearer <access-token>` on management requests. Do not place 
 | Capability | Administrator | Operator | Viewer |
 |---|:---:|:---:|:---:|
 | View dashboard, agents, tasks | ✓ | ✓ | ✓ |
-| Create allowlisted task | ✓ | ✓ | — |
+| Create authorized typed task | ✓ | ✓ | — |
 | View audit | ✓ | ✓ | ✓ |
 | Generate/revoke enrollment token | ✓ | — | — |
 | Remove agent | ✓ | — | — |
@@ -39,7 +39,7 @@ Heartbeats carry current agent version, monotonic uptime estimate, hostname, obs
 
 ## Task envelopes and transitions
 
-A task envelope contains `id`, `agent_id`, `task_type`, a small validated `parameters` object, creation/expiration timestamps, and status. It does not contain a command. Polling atomically transitions eligible work from `QUEUED` to `DISPATCHED`; the assigned agent may start and complete only its own task.
+Task creation contains `agent_id`, `task_type`, a small validated `parameters` object, and `authorized_scope_confirmed: true`. The confirmation is retained in the creation audit event. The agent envelope contains the task identity, type, normalized parameters, creation/expiration timestamps, and status; it never contains a command. Polling atomically transitions eligible work from `QUEUED` to `DISPATCHED`, and the assigned agent may start and complete only its own task.
 
 ```text
 QUEUED ──> DISPATCHED ──> RUNNING ──> SUCCESS

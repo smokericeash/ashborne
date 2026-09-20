@@ -44,7 +44,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) {
     const variants: Record<ButtonVariant, string> = {
       primary:
-        "border-kandor-400/30 bg-kandor-400 text-slate-950 hover:bg-kandor-300 shadow-signal",
+        "border-ashborne-400/30 bg-ashborne-400 text-slate-950 hover:bg-ashborne-300 shadow-signal",
       secondary:
         "border-line bg-elevated text-slate-200 hover:border-slate-500 hover:bg-slate-800",
       ghost:
@@ -169,7 +169,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         {eyebrow && (
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-kandor-400">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-ashborne-400">
             {eyebrow}
           </p>
         )}
@@ -209,14 +209,14 @@ export function SectionTitle({
   );
 }
 
-export function Spinner({ label = "Loading KANDOR" }: { label?: string }) {
+export function Spinner({ label = "Loading ASHBORNE" }: { label?: string }) {
   return (
     <div
       className="flex min-h-44 flex-col items-center justify-center gap-3 text-slate-500"
       role="status"
     >
-      <div className="relative grid h-10 w-10 place-items-center rounded-xl border border-kandor-400/30 bg-kandor-400/5">
-        <LoaderCircle className="h-5 w-5 animate-spin text-kandor-400" />
+      <div className="relative grid h-10 w-10 place-items-center rounded-xl border border-ashborne-400/30 bg-ashborne-400/5">
+        <LoaderCircle className="h-5 w-5 animate-spin text-ashborne-400" />
       </div>
       <span className="text-xs uppercase tracking-[.14em]">{label}</span>
     </div>
@@ -228,7 +228,7 @@ export function PageLoader() {
     <div
       className="grid min-h-screen place-items-center bg-void"
       role="status"
-      aria-label="Loading KANDOR"
+      aria-label="Loading ASHBORNE"
     >
       <div className="text-center">
         <LogoMark className="mx-auto mb-4 h-14 w-14" />
@@ -468,22 +468,22 @@ export function LogoMark({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative grid h-9 w-9 place-items-center overflow-hidden rounded-[10px] border border-kandor-400/35 bg-kandor-400/[.07] shadow-signal",
+        "relative grid h-9 w-9 place-items-center overflow-hidden rounded-[10px] border border-ashborne-400/35 bg-ashborne-400/[.07] shadow-signal",
         className,
       )}
       aria-hidden
     >
       <svg
         viewBox="0 0 32 32"
-        className="h-[58%] w-[58%] fill-none stroke-kandor-300"
+        className="h-[58%] w-[58%] fill-none stroke-ashborne-300"
         strokeWidth="2.6"
         strokeLinecap="square"
         strokeLinejoin="miter"
       >
-        <path d="M7 5v22M8 16 22 5M8 16l15 11" />
-        <path d="M20 5h5M21 27h5" className="opacity-40" />
+        <path d="M5 27 15.8 5 27 27M9.5 19h12.8" />
+        <path d="M15.8 5v6" className="opacity-40" />
       </svg>
-      <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-kandor-300" />
+      <span className="absolute right-1 top-1 h-1 w-1 rounded-full bg-ashborne-300" />
     </div>
   );
 }
@@ -523,7 +523,7 @@ export function FilterChip({
 }) {
   return (
     <button
-      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-kandor-400/20 bg-kandor-400/[.06] px-2 text-[11px] text-kandor-200"
+      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-ashborne-400/20 bg-ashborne-400/[.06] px-2 text-[11px] text-ashborne-200"
       onClick={onRemove}
     >
       {humanize(label)} <X className="h-3 w-3" />

@@ -1,4 +1,4 @@
-"""Small validated wire models used by the KANDOR agent."""
+"""Small validated wire models used by the ASHBORNE agent."""
 
 from __future__ import annotations
 

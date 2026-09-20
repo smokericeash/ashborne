@@ -14,10 +14,10 @@ import { cn } from "../../lib/utils";
 import { LogoMark } from "../ui";
 
 const navigation = [
-  { label: "Dashboard", to: "/dashboard", icon: Gauge },
-  { label: "Agents", to: "/agents", icon: ShieldCheck },
+  { label: "Command Center", to: "/dashboard", icon: Gauge },
+  { label: "Lab Hosts", to: "/agents", icon: ShieldCheck },
   { label: "Tasks", to: "/tasks", icon: ClipboardList },
-  { label: "Audit", to: "/audit", icon: FileSearch },
+  { label: "Timeline / Audit", to: "/audit", icon: FileSearch },
   { label: "Users", to: "/users", icon: Users, administratorOnly: true },
   {
     label: "Settings",
@@ -126,10 +126,10 @@ export function Sidebar({
           <LogoMark />
           <div className="min-w-0">
             <p className="text-[17px] font-bold tracking-[.22em] text-white">
-              KANDOR
+              ASHBORNE
             </p>
-            <p className="truncate text-[9px] uppercase tracking-[.12em] text-kandor-400/75">
-              Agent Orchestration
+            <p className="truncate text-[9px] uppercase tracking-[.12em] text-ashborne-400/75">
+              Adversary Emulation Lab
             </p>
           </div>
           <button
@@ -144,7 +144,7 @@ export function Sidebar({
 
         <div className="px-4 pb-2 pt-5">
           <p className="px-3 text-[9px] font-bold uppercase tracking-[.2em] text-slate-700">
-            Command surface
+            Operator workspace
           </p>
         </div>
         <nav className="flex-1 space-y-1 px-3" aria-label="Primary navigation">
@@ -161,20 +161,20 @@ export function Sidebar({
                 className={({ isActive }) =>
                   cn(
                     "group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-slate-500 transition hover:bg-white/[.035] hover:text-slate-200",
-                    isActive && "bg-kandor-400/[.07] text-kandor-200",
+                    isActive && "bg-ashborne-400/[.07] text-ashborne-200",
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <span className="absolute -left-3 h-5 w-0.5 rounded-r bg-kandor-400 shadow-signal" />
+                      <span className="absolute -left-3 h-5 w-0.5 rounded-r bg-ashborne-400 shadow-signal" />
                     )}
                     <item.icon
                       className={cn(
                         "h-[17px] w-[17px]",
                         isActive
-                          ? "text-kandor-400"
+                          ? "text-ashborne-400"
                           : "text-slate-600 group-hover:text-slate-400",
                       )}
                     />
@@ -192,11 +192,12 @@ export function Sidebar({
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-400">
-              Core operational
+              Lab controls active
             </span>
           </div>
           <p className="mt-2 text-[10px] leading-4 text-slate-600">
-            Allowlisted diagnostics only. All operator actions are audited.
+            Authorized, typed lab actions only. Every operator request is
+            audited.
           </p>
         </div>
       </aside>

@@ -11,7 +11,7 @@ const agentBase = {
   agent_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   name: "lab-sensor-01",
   hostname: "lab-sensor-01",
-  username: "kandor",
+  username: "ashborne",
   operating_system: "Linux",
   os_version: "Debian 13",
   architecture: "x86_64",
@@ -175,7 +175,9 @@ describe("backend response normalization", () => {
         successfulTask(
           "PROCESS_INVENTORY",
           {
-            processes: [{ pid: 42, name: "kandor-agent", username: "kandor" }],
+            processes: [
+              { pid: 42, name: "ashborne-agent", username: "ashborne" },
+            ],
           },
           5,
         ),
@@ -196,7 +198,7 @@ describe("backend response normalization", () => {
         ),
         successfulTask(
           "INSTALLED_SOFTWARE",
-          { software: [{ name: "kandor-agent", version: "0.1.0" }] },
+          { software: [{ name: "ashborne-agent", version: "0.1.0" }] },
           7,
         ),
       ],
@@ -226,7 +228,7 @@ describe("backend response normalization", () => {
           is_up: true,
         },
       ],
-      processes: [{ pid: 42, name: "kandor-agent", username: "kandor" }],
+      processes: [{ pid: 42, name: "ashborne-agent", username: "ashborne" }],
       listening_ports: [
         {
           protocol: "TCP",
@@ -236,7 +238,7 @@ describe("backend response normalization", () => {
           pid: 84,
         },
       ],
-      installed_software: [{ name: "kandor-agent", version: "0.1.0" }],
+      installed_software: [{ name: "ashborne-agent", version: "0.1.0" }],
     });
   });
 

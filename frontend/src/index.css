@@ -14,18 +14,18 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  background: #05070b;
+  background: #070607;
   color: #e8edf4;
 }
 
 * {
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: #263544 #090d14;
+  scrollbar-color: #3c2930 #0b090b;
 }
 
 html {
-  background: #05070b;
+  background: #070607;
 }
 
 body {
@@ -35,15 +35,15 @@ body {
   background:
     radial-gradient(
       circle at 72% -10%,
-      rgba(24, 185, 170, 0.1),
+      rgba(174, 28, 65, 0.13),
       transparent 28rem
     ),
     radial-gradient(
       circle at -10% 90%,
-      rgba(45, 104, 160, 0.08),
+      rgba(111, 45, 29, 0.08),
       transparent 30rem
     ),
-    #05070b;
+    #070607;
 }
 
 button,
@@ -58,13 +58,13 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #25cfbe;
+  outline: 2px solid #ef6b85;
   outline-offset: 2px;
 }
 
 ::selection {
-  color: #03100f;
-  background: #5de8d8;
+  color: #16070b;
+  background: #ef6b85;
 }
 
 @layer components {
@@ -73,7 +73,7 @@ textarea:focus-visible {
   }
 
   .field {
-    @apply h-10 w-full rounded-lg border border-line bg-obsidian/80 px-3 text-sm text-slate-100 placeholder:text-slate-600 transition hover:border-slate-600 focus:border-kandor-400 focus:outline-none focus:ring-2 focus:ring-kandor-400/10 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply h-10 w-full rounded-lg border border-line bg-obsidian/80 px-3 text-sm text-slate-100 placeholder:text-slate-600 transition hover:border-slate-600 focus:border-ashborne-400 focus:outline-none focus:ring-2 focus:ring-ashborne-400/10 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .label {

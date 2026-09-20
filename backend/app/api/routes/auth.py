@@ -22,7 +22,7 @@ from app.services.audit import record_audit
 from app.services.settings import read_settings
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-_dummy_password_hash = hash_password("Kandor-Dummy-Password-2026")
+_dummy_password_hash = hash_password("Ashborne-Dummy-Password-2026")
 
 
 async def _issue_tokens(db: AsyncSession, user: User, family_id: str | None = None) -> TokenResponse:

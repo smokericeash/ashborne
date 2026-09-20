@@ -10,7 +10,7 @@ import type { User } from "../types";
 export const administrator: User = {
   id: "11111111-1111-4111-8111-111111111111",
   email: "admin@example.local",
-  display_name: "KANDOR Administrator",
+  display_name: "ASHBORNE Administrator",
   role: "ADMINISTRATOR",
   is_active: true,
   created_at: "2026-09-01T00:00:00Z",
@@ -21,7 +21,7 @@ export const operator: User = {
   ...administrator,
   id: "22222222-2222-4222-8222-222222222222",
   email: "operator@example.local",
-  display_name: "KANDOR Operator",
+  display_name: "ASHBORNE Operator",
   role: "OPERATOR",
 };
 
@@ -29,7 +29,7 @@ export const viewer: User = {
   ...administrator,
   id: "33333333-3333-4333-8333-333333333333",
   email: "viewer@example.local",
-  display_name: "KANDOR Viewer",
+  display_name: "ASHBORNE Viewer",
   role: "VIEWER",
 };
 

@@ -18,7 +18,7 @@ from app.schemas import UserCreate
 from app.services.audit import record_audit
 from app.services.seed import ensure_roles, seed_development
 
-cli = typer.Typer(name="kandor", help="KANDOR local administrative CLI", no_args_is_help=True)
+cli = typer.Typer(name="ashborne", help="ASHBORNE local administrative CLI", no_args_is_help=True)
 
 
 def run(coro):
@@ -27,7 +27,7 @@ def run(coro):
 
 @cli.command()
 def status() -> None:
-    """Show database-level KANDOR status."""
+    """Show database-level ASHBORNE status."""
 
     async def command() -> None:
         async with SessionLocal() as db:

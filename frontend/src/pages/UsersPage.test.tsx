@@ -25,7 +25,7 @@ describe("UsersPage creation validation", () => {
 
     await screen.findByText("No users match");
     await user.click(screen.getByRole("button", { name: "Create user" }));
-    const dialog = screen.getByRole("dialog", { name: "Create KANDOR user" });
+    const dialog = screen.getByRole("dialog", { name: "Create ASHBORNE user" });
     const submit = within(dialog).getByRole("button", { name: "Create user" });
     const displayName = within(dialog).getByLabelText("Display name");
     const password = within(dialog).getByLabelText("Initial password");

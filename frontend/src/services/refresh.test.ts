@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 describe("access-token refresh", () => {
   beforeEach(() => {
     vi.resetModules();
-    sessionStorage.setItem("kandor.refresh_token", "refresh-before-reload");
+    sessionStorage.setItem("ashborne.refresh_token", "refresh-before-reload");
     sessionStorage.setItem(
-      "kandor.access_token",
+      "ashborne.access_token",
       "legacy-access-must-not-load",
     );
   });
@@ -65,10 +65,10 @@ describe("access-token refresh", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(tokenStore.getAccess()).toBe("access-after-refresh");
-    expect(sessionStorage.getItem("kandor.refresh_token")).toBe(
+    expect(sessionStorage.getItem("ashborne.refresh_token")).toBe(
       "refresh-after-refresh",
     );
-    expect(sessionStorage.getItem("kandor.access_token")).toBeNull();
+    expect(sessionStorage.getItem("ashborne.access_token")).toBeNull();
     expect(sessionUpdated).toHaveBeenCalledWith(refreshedUser);
     onSessionUpdated(null);
   });

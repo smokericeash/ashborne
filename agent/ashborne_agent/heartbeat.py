@@ -8,13 +8,18 @@ import threading
 import time
 from collections.abc import Callable
 
-from kandor_agent.client import AgentAPIError, AuthenticationError, KandorClient, heartbeat_payload
-from kandor_agent.config import AgentConfig
-from kandor_agent.executor import TaskExecutionError, TaskValidationError, execute_task
-from kandor_agent.models import PendingTask, ProtocolError, TaskResult
-from kandor_agent.outbox import ResultOutbox
+from ashborne_agent.client import (
+    AgentAPIError,
+    AshborneClient,
+    AuthenticationError,
+    heartbeat_payload,
+)
+from ashborne_agent.config import AgentConfig
+from ashborne_agent.executor import TaskExecutionError, TaskValidationError, execute_task
+from ashborne_agent.models import PendingTask, ProtocolError, TaskResult
+from ashborne_agent.outbox import ResultOutbox
 
-LOG = logging.getLogger("kandor_agent.runner")
+LOG = logging.getLogger("ashborne_agent.runner")
 MAX_TASKS_PER_CYCLE = 10
 
 
@@ -22,7 +27,7 @@ class AgentRunner:
     def __init__(
         self,
         config: AgentConfig,
-        client: KandorClient,
+        client: AshborneClient,
         outbox: ResultOutbox,
         *,
         stop_event: threading.Event | None = None,
@@ -38,7 +43,7 @@ class AgentRunner:
 
     def run_forever(self) -> None:
         LOG.info(
-            "KANDOR agent started",
+            "ASHBORNE agent started",
             extra={"event": "agent_started", "agent_id": self.config.agent_id},
         )
         while not self.stop_event.is_set():
@@ -56,7 +61,7 @@ class AgentRunner:
                 self._failure_count += 1
                 delay = min(60.0, max(self.config.poll_interval, 2 ** min(self._failure_count, 6)))
                 LOG.warning(
-                    "KANDOR API unavailable; agent will reconnect",
+                    "ASHBORNE API unavailable; agent will reconnect",
                     extra={
                         "event": "reconnect_wait",
                         "agent_id": self.config.agent_id,
@@ -66,7 +71,7 @@ class AgentRunner:
                 )
                 self.stop_event.wait(delay)
         LOG.info(
-            "KANDOR agent stopped",
+            "ASHBORNE agent stopped",
             extra={"event": "agent_stopped", "agent_id": self.config.agent_id},
         )
 
@@ -103,7 +108,7 @@ class AgentRunner:
             return float(value)
         if value is not None:
             LOG.warning(
-                "Ignoring an invalid heartbeat interval from the KANDOR API",
+                "Ignoring an invalid heartbeat interval from the ASHBORNE API",
                 extra={
                     "event": "invalid_heartbeat_interval",
                     "agent_id": self.config.agent_id,

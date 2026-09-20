@@ -1,4 +1,4 @@
-name: kandor
+name: ashborne
 
 x-logging: &default-logging
   driver: json-file
@@ -7,18 +7,18 @@ x-logging: &default-logging
     max-file: "5"
 
 services:
-  kandor-postgres:
+  ashborne-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      KANDOR_DB_USER: ${KANDOR_DB_USER:?Set KANDOR_DB_USER in .env}
-      KANDOR_DB_PASSWORD: ${KANDOR_DB_PASSWORD:?Set KANDOR_DB_PASSWORD in .env}
+      ASHBORNE_DB_USER: ${ASHBORNE_DB_USER:?Set ASHBORNE_DB_USER in .env}
+      ASHBORNE_DB_PASSWORD: ${ASHBORNE_DB_PASSWORD:?Set ASHBORNE_DB_PASSWORD in .env}
     volumes:
-      - kandor-postgres-data:/var/lib/postgresql/data
-      - ./docker/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-kandor-app-role.sh:ro
+      - ashborne-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-ashborne-app-role.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -28,10 +28,10 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - kandor-data
+      - ashborne-data
     logging: *default-logging
 
-  kandor-redis:
+  ashborne-redis:
     image: redis:7.4-alpine
     restart: unless-stopped
     command:
@@ -43,7 +43,7 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     volumes:
-      - kandor-redis-data:/data
+      - ashborne-redis-data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
       interval: 5s
@@ -53,52 +53,52 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - kandor-data
+      - ashborne-data
     logging: *default-logging
 
-  kandor-backend:
+  ashborne-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: kandor-backend:local
+    image: ashborne-backend:local
     restart: unless-stopped
     environment:
-      KANDOR_ENVIRONMENT: ${KANDOR_ENVIRONMENT:-development}
-      KANDOR_DEBUG: ${KANDOR_DEBUG:-false}
-      KANDOR_LOG_LEVEL: ${KANDOR_LOG_LEVEL:-INFO}
-      KANDOR_AUTO_CREATE_TABLES: ${KANDOR_AUTO_CREATE_TABLES:-false}
-      KANDOR_DATABASE_URL: ${KANDOR_DATABASE_URL:?Set KANDOR_DATABASE_URL in .env}
-      KANDOR_REDIS_URL: ${KANDOR_REDIS_URL:?Set KANDOR_REDIS_URL in .env}
-      KANDOR_SECRET_KEY: ${KANDOR_SECRET_KEY:?Set KANDOR_SECRET_KEY in .env}
-      KANDOR_JWT_ISSUER: ${KANDOR_JWT_ISSUER:-kandor}
-      KANDOR_JWT_AUDIENCE: ${KANDOR_JWT_AUDIENCE:-kandor-ui}
-      KANDOR_SESSION_TIMEOUT_MINUTES: ${KANDOR_SESSION_TIMEOUT_MINUTES:-60}
-      KANDOR_REFRESH_TOKEN_DAYS: ${KANDOR_REFRESH_TOKEN_DAYS:-7}
-      KANDOR_CORS_ORIGINS: ${KANDOR_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-      KANDOR_TRUSTED_HOSTS: ${KANDOR_TRUSTED_HOSTS:-localhost,127.0.0.1,kandor-backend}
-      KANDOR_MAX_REQUEST_BYTES: ${KANDOR_MAX_REQUEST_BYTES:-1048576}
-      KANDOR_RATE_LIMIT_REQUESTS: ${KANDOR_RATE_LIMIT_REQUESTS:-300}
-      KANDOR_RATE_LIMIT_WINDOW_SECONDS: ${KANDOR_RATE_LIMIT_WINDOW_SECONDS:-60}
-      KANDOR_LOGIN_RATE_LIMIT_REQUESTS: ${KANDOR_LOGIN_RATE_LIMIT_REQUESTS:-10}
-      KANDOR_HEARTBEAT_INTERVAL_SECONDS: ${KANDOR_HEARTBEAT_INTERVAL_SECONDS:-30}
-      KANDOR_DEGRADED_THRESHOLD_SECONDS: ${KANDOR_DEGRADED_THRESHOLD_SECONDS:-60}
-      KANDOR_OFFLINE_THRESHOLD_SECONDS: ${KANDOR_OFFLINE_THRESHOLD_SECONDS:-300}
-      KANDOR_TASK_EXPIRATION_SECONDS: ${KANDOR_TASK_EXPIRATION_SECONDS:-3600}
-      KANDOR_PAGE_SIZE: ${KANDOR_PAGE_SIZE:-25}
-      KANDOR_AUDIT_RETENTION_DAYS: ${KANDOR_AUDIT_RETENTION_DAYS:-365}
-      KANDOR_SEED_DEVELOPMENT: ${KANDOR_SEED_DEVELOPMENT:-false}
-      KANDOR_ADMIN_PASSWORD: ${KANDOR_ADMIN_PASSWORD:-}
-      KANDOR_OPERATOR_PASSWORD: ${KANDOR_OPERATOR_PASSWORD:-}
-      KANDOR_VIEWER_PASSWORD: ${KANDOR_VIEWER_PASSWORD:-}
-      KANDOR_DEMO_BOOTSTRAP_SECRET: ${KANDOR_DEMO_BOOTSTRAP_SECRET:-}
-      KANDOR_FORWARDED_ALLOW_IPS: ${KANDOR_FORWARDED_ALLOW_IPS:-172.30.254.10}
+      ASHBORNE_ENVIRONMENT: ${ASHBORNE_ENVIRONMENT:-development}
+      ASHBORNE_DEBUG: ${ASHBORNE_DEBUG:-false}
+      ASHBORNE_LOG_LEVEL: ${ASHBORNE_LOG_LEVEL:-INFO}
+      ASHBORNE_AUTO_CREATE_TABLES: ${ASHBORNE_AUTO_CREATE_TABLES:-false}
+      ASHBORNE_DATABASE_URL: ${ASHBORNE_DATABASE_URL:?Set ASHBORNE_DATABASE_URL in .env}
+      ASHBORNE_REDIS_URL: ${ASHBORNE_REDIS_URL:?Set ASHBORNE_REDIS_URL in .env}
+      ASHBORNE_SECRET_KEY: ${ASHBORNE_SECRET_KEY:?Set ASHBORNE_SECRET_KEY in .env}
+      ASHBORNE_JWT_ISSUER: ${ASHBORNE_JWT_ISSUER:-ashborne}
+      ASHBORNE_JWT_AUDIENCE: ${ASHBORNE_JWT_AUDIENCE:-ashborne-ui}
+      ASHBORNE_SESSION_TIMEOUT_MINUTES: ${ASHBORNE_SESSION_TIMEOUT_MINUTES:-60}
+      ASHBORNE_REFRESH_TOKEN_DAYS: ${ASHBORNE_REFRESH_TOKEN_DAYS:-7}
+      ASHBORNE_CORS_ORIGINS: ${ASHBORNE_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      ASHBORNE_TRUSTED_HOSTS: ${ASHBORNE_TRUSTED_HOSTS:-localhost,127.0.0.1,ashborne-backend}
+      ASHBORNE_MAX_REQUEST_BYTES: ${ASHBORNE_MAX_REQUEST_BYTES:-1048576}
+      ASHBORNE_RATE_LIMIT_REQUESTS: ${ASHBORNE_RATE_LIMIT_REQUESTS:-300}
+      ASHBORNE_RATE_LIMIT_WINDOW_SECONDS: ${ASHBORNE_RATE_LIMIT_WINDOW_SECONDS:-60}
+      ASHBORNE_LOGIN_RATE_LIMIT_REQUESTS: ${ASHBORNE_LOGIN_RATE_LIMIT_REQUESTS:-10}
+      ASHBORNE_HEARTBEAT_INTERVAL_SECONDS: ${ASHBORNE_HEARTBEAT_INTERVAL_SECONDS:-30}
+      ASHBORNE_DEGRADED_THRESHOLD_SECONDS: ${ASHBORNE_DEGRADED_THRESHOLD_SECONDS:-60}
+      ASHBORNE_OFFLINE_THRESHOLD_SECONDS: ${ASHBORNE_OFFLINE_THRESHOLD_SECONDS:-300}
+      ASHBORNE_TASK_EXPIRATION_SECONDS: ${ASHBORNE_TASK_EXPIRATION_SECONDS:-3600}
+      ASHBORNE_PAGE_SIZE: ${ASHBORNE_PAGE_SIZE:-25}
+      ASHBORNE_AUDIT_RETENTION_DAYS: ${ASHBORNE_AUDIT_RETENTION_DAYS:-365}
+      ASHBORNE_SEED_DEVELOPMENT: ${ASHBORNE_SEED_DEVELOPMENT:-false}
+      ASHBORNE_ADMIN_PASSWORD: ${ASHBORNE_ADMIN_PASSWORD:-}
+      ASHBORNE_OPERATOR_PASSWORD: ${ASHBORNE_OPERATOR_PASSWORD:-}
+      ASHBORNE_VIEWER_PASSWORD: ${ASHBORNE_VIEWER_PASSWORD:-}
+      ASHBORNE_DEMO_BOOTSTRAP_SECRET: ${ASHBORNE_DEMO_BOOTSTRAP_SECRET:-}
+      ASHBORNE_FORWARDED_ALLOW_IPS: ${ASHBORNE_FORWARDED_ALLOW_IPS:-172.30.254.10}
     depends_on:
-      kandor-postgres:
+      ashborne-postgres:
         condition: service_healthy
-      kandor-redis:
+      ashborne-redis:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${KANDOR_API_PORT:-8000}:8000"
+      - "127.0.0.1:${ASHBORNE_API_PORT:-8000}:8000"
     healthcheck:
       test:
         - CMD
@@ -118,24 +118,24 @@ services:
     cap_drop:
       - ALL
     networks:
-      - kandor-data
-      - kandor-agent
-      - kandor-proxy
+      - ashborne-data
+      - ashborne-agent
+      - ashborne-proxy
     logging: *default-logging
 
-  kandor-frontend:
+  ashborne-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-}
-    image: kandor-frontend:local
+    image: ashborne-frontend:local
     restart: unless-stopped
     depends_on:
-      kandor-backend:
+      ashborne-backend:
         condition: service_healthy
     ports:
-      - "127.0.0.1:${KANDOR_UI_PORT:-3000}:8080"
+      - "127.0.0.1:${ASHBORNE_UI_PORT:-3000}:8080"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -150,34 +150,34 @@ services:
     cap_drop:
       - ALL
     networks:
-      kandor-proxy:
-        ipv4_address: ${KANDOR_FRONTEND_PROXY_IP:-172.30.254.10}
+      ashborne-proxy:
+        ipv4_address: ${ASHBORNE_FRONTEND_PROXY_IP:-172.30.254.10}
     logging: *default-logging
 
-  kandor-agent:
+  ashborne-agent:
     profiles: ["demo"]
     build:
       context: ./agent
       dockerfile: Dockerfile
-    image: kandor-agent:local
+    image: ashborne-agent:local
     restart: unless-stopped
     environment:
-      KANDOR_SERVER_URL: http://kandor-backend:8000
+      ASHBORNE_SERVER_URL: http://ashborne-backend:8000
       # Keep interpolation optional so production can omit this development-only
       # secret while the demo profile is inactive. The agent rejects an empty
       # value if the profile is explicitly started.
-      KANDOR_DEMO_BOOTSTRAP_SECRET: ${KANDOR_DEMO_BOOTSTRAP_SECRET:-}
-      KANDOR_CONFIG: /var/lib/kandor/agent.json
-      KANDOR_HEARTBEAT_INTERVAL: ${KANDOR_HEARTBEAT_INTERVAL:-30}
-      KANDOR_POLL_INTERVAL: ${KANDOR_POLL_INTERVAL:-5}
-      KANDOR_LOG_LEVEL: ${KANDOR_LOG_LEVEL:-INFO}
-      KANDOR_ALLOW_INSECURE_HTTP: "true"
+      ASHBORNE_DEMO_BOOTSTRAP_SECRET: ${ASHBORNE_DEMO_BOOTSTRAP_SECRET:-}
+      ASHBORNE_CONFIG: /var/lib/ashborne/agent.json
+      ASHBORNE_HEARTBEAT_INTERVAL: ${ASHBORNE_HEARTBEAT_INTERVAL:-30}
+      ASHBORNE_POLL_INTERVAL: ${ASHBORNE_POLL_INTERVAL:-5}
+      ASHBORNE_LOG_LEVEL: ${ASHBORNE_LOG_LEVEL:-INFO}
+      ASHBORNE_ALLOW_INSECURE_HTTP: "true"
     depends_on:
-      kandor-backend:
+      ashborne-backend:
         condition: service_healthy
     volumes:
-      - /var/lib/kandor
-      - /var/log/kandor
+      - /var/lib/ashborne
+      - /var/log/ashborne
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -187,22 +187,22 @@ services:
     cap_drop:
       - ALL
     networks:
-      - kandor-agent
+      - ashborne-agent
     logging: *default-logging
 
 volumes:
-  kandor-postgres-data:
-  kandor-redis-data:
+  ashborne-postgres-data:
+  ashborne-redis-data:
 
 networks:
-  kandor-data:
+  ashborne-data:
     driver: bridge
     internal: true
-  kandor-agent:
+  ashborne-agent:
     driver: bridge
     internal: true
-  kandor-proxy:
+  ashborne-proxy:
     driver: bridge
     ipam:
       config:
-        - subnet: ${KANDOR_PROXY_SUBNET:-172.30.254.0/28}
+        - subnet: ${ASHBORNE_PROXY_SUBNET:-172.30.254.0/28}

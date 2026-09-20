@@ -3,14 +3,14 @@ requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kandor-agent"
+name = "ashborne-agent"
 version = "0.1.0"
-description = "Safe, allowlisted diagnostics agent for KANDOR"
+description = "Typed local-host adversary-emulation lab agent for ASHBORNE"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "KANDOR Contributors" }]
+authors = [{ name = "ASHBORNE Contributors" }]
 dependencies = [
   "httpx>=0.27,<1",
   "psutil>=6,<8",
@@ -28,10 +28,10 @@ dev = [
 ]
 
 [project.scripts]
-kandor-agent = "kandor_agent.main:main"
+ashborne-agent = "ashborne_agent.main:main"
 
 [tool.setuptools.packages.find]
-include = ["kandor_agent*"]
+include = ["ashborne_agent*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
@@ -49,4 +49,4 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 show_error_codes = true
-packages = ["kandor_agent"]
+packages = ["ashborne_agent"]

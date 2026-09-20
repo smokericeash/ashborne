@@ -1,4 +1,4 @@
-"""Strict task validation and dispatch to dedicated diagnostic handlers."""
+"""Strict task validation and dispatch to dedicated lab-action handlers."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from kandor_agent import inventory
-from kandor_agent.models import MAX_RESULT_BYTES
+from ashborne_agent import inventory
+from ashborne_agent.models import MAX_RESULT_BYTES
 
 
 class TaskValidationError(ValueError):
@@ -17,7 +17,7 @@ class TaskValidationError(ValueError):
 
 
 class TaskExecutionError(RuntimeError):
-    """An allowlisted diagnostic failed safely."""
+    """An allowlisted lab action failed safely."""
 
 
 Handler = Callable[[dict[str, Any]], dict[str, Any]]
@@ -31,15 +31,27 @@ class TaskSpec:
 
 
 TASK_SPECS: dict[str, TaskSpec] = {
+    "QUICK_RECON": TaskSpec(inventory.get_quick_recon, lambda value: _no_parameters(value)),
     "SYSTEM_INFO": TaskSpec(inventory.get_system_info, lambda value: _no_parameters(value)),
     "HOSTNAME": TaskSpec(inventory.get_hostname, lambda value: _no_parameters(value)),
     "CURRENT_USER": TaskSpec(inventory.get_current_user, lambda value: _no_parameters(value)),
+    "SECURITY_CONTEXT": TaskSpec(
+        inventory.get_security_context, lambda value: _no_parameters(value)
+    ),
     "CPU_INFO": TaskSpec(inventory.get_cpu_info, lambda value: _no_parameters(value)),
     "MEMORY_USAGE": TaskSpec(inventory.get_memory_usage, lambda value: _no_parameters(value)),
     "DISK_USAGE": TaskSpec(inventory.get_disk_usage, lambda value: _disk_parameters(value)),
+    "FILE_SYSTEM_OVERVIEW": TaskSpec(
+        inventory.get_file_system_overview, lambda value: _no_parameters(value)
+    ),
     "NETWORK_INTERFACES": TaskSpec(
         inventory.get_network_interfaces, lambda value: _no_parameters(value)
     ),
+    "NETWORK_CONNECTIONS": TaskSpec(
+        inventory.get_network_connections,
+        lambda value: _limit_parameters(value, default=200, maximum=inventory.MAX_CONNECTIONS),
+    ),
+    "ROUTE_TABLE": TaskSpec(inventory.get_route_table, lambda value: _no_parameters(value)),
     "UPTIME": TaskSpec(inventory.get_uptime, lambda value: _no_parameters(value)),
     "PROCESS_INVENTORY": TaskSpec(
         inventory.get_process_inventory,
@@ -73,7 +85,7 @@ def execute_task(task_type: object, parameters: object) -> dict[str, Any]:
         raise
     except Exception as exc:
         # The exception text may contain local paths or other unnecessary details.
-        raise TaskExecutionError(f"{task_type} diagnostic failed ({type(exc).__name__})") from exc
+        raise TaskExecutionError(f"{task_type} lab action failed ({type(exc).__name__})") from exc
     result = {
         "task_type": task_type,
         "collected_at": datetime.now(UTC).isoformat(),
@@ -87,9 +99,9 @@ def execute_task(task_type: object, parameters: object) -> dict[str, Any]:
             separators=(",", ":"),
         ).encode("utf-8")
     except (TypeError, ValueError) as exc:
-        raise TaskExecutionError("diagnostic returned a non-serializable result") from exc
+        raise TaskExecutionError("lab action returned a non-serializable result") from exc
     if len(encoded) > MAX_RESULT_BYTES:
-        raise TaskExecutionError("diagnostic result exceeded the local size limit")
+        raise TaskExecutionError("lab-action result exceeded the local size limit")
     return result
 
 

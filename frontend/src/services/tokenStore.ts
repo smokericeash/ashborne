@@ -1,11 +1,11 @@
-const REFRESH_KEY = "kandor.refresh_token";
+const REFRESH_KEY = "ashborne.refresh_token";
 
 let accessToken: string | null = null;
 let refreshToken = safeRead(REFRESH_KEY);
 
 // Access tokens intentionally live only in memory. Remove the key used by early
 // development builds without ever reading its value back into the application.
-safeWrite("kandor.access_token", null);
+safeWrite("ashborne.access_token", null);
 
 function safeRead(key: string) {
   try {
@@ -38,7 +38,7 @@ export const tokenStore = {
     accessToken = null;
     refreshToken = null;
     // Remove the legacy key from pre-0.1 development builds, if present.
-    safeWrite("kandor.access_token", null);
+    safeWrite("ashborne.access_token", null);
     safeWrite(REFRESH_KEY, null);
   },
 };

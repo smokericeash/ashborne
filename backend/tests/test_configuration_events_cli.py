@@ -25,10 +25,10 @@ from tests.conftest import authorization
 def production_settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "environment": "production",
-        "database_url": "postgresql+asyncpg://kandor:random-password@database:5432/kandor",
+        "database_url": "postgresql+asyncpg://ashborne:random-password@database:5432/ashborne",
         "secret_key": "unique-production-signing-key-with-more-than-32-characters",
-        "cors_origins": ["https://kandor.example"],
-        "trusted_hosts": ["kandor.example"],
+        "cors_origins": ["https://ashborne.example"],
+        "trusted_hosts": ["ashborne.example"],
         "auto_create_tables": False,
         "seed_development": False,
         "admin_password": None,
@@ -46,7 +46,7 @@ def test_production_configuration_accepts_only_explicit_safe_values() -> None:
 
     unsafe_values = [
         {"secret_key": "CHANGE_ME_64_character_random_signing_secret_0000000000000000000000"},
-        {"database_url": "postgresql+asyncpg://kandor:CHANGE_ME_password@database:5432/kandor"},
+        {"database_url": "postgresql+asyncpg://ashborne:CHANGE_ME_password@database:5432/ashborne"},
         {"redis_url": "redis://:CHANGE_ME_password@redis:6379/0"},
         {"trusted_hosts": ["*"]},
         {"trusted_hosts": []},
@@ -80,8 +80,8 @@ def test_dotenv_locations_are_repository_relative() -> None:
 
 
 def test_comma_separated_list_environment_values_are_supported(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KANDOR_CORS_ORIGINS", "https://one.example, https://two.example")
-    monkeypatch.setenv("KANDOR_TRUSTED_HOSTS", "one.example,two.example")
+    monkeypatch.setenv("ASHBORNE_CORS_ORIGINS", "https://one.example, https://two.example")
+    monkeypatch.setenv("ASHBORNE_TRUSTED_HOSTS", "one.example,two.example")
 
     settings = Settings(_env_file=None)
 
@@ -117,14 +117,14 @@ async def test_development_seed_rejects_weak_account_passwords() -> None:
 
 def test_json_logging_redacts_credentials_tokens_and_url_passwords() -> None:
     record = logging.LogRecord(
-        "kandor.test",
+        "ashborne.test",
         logging.ERROR,
         __file__,
         1,
         (
             "authorization=Bearer header-value password='plain-value' "
             "credential=kac_example-token token=ket_example.token "
-            "url=postgresql://user:database-password@database/kandor"
+            "url=postgresql://user:database-password@database/ashborne"
         ),
         (),
         None,

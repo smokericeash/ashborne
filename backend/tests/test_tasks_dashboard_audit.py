@@ -19,35 +19,85 @@ async def test_task_allowlist_lifecycle_and_result(
     payload, enrolled = await create_enrolled_agent(client, admin_tokens)
     agent_id = payload["agent_id"]
     operator_auth = authorization(operator_tokens)
+    unconfirmed = await client.post(
+        "/api/v1/tasks",
+        headers=operator_auth,
+        json={
+            "authorized_scope_confirmed": False,
+            "agent_id": agent_id,
+            "task_type": "SYSTEM_INFO",
+            "parameters": {},
+        },
+    )
+    assert unconfirmed.status_code == 422
+    non_boolean_confirmation = await client.post(
+        "/api/v1/tasks",
+        headers=operator_auth,
+        json={
+            "authorized_scope_confirmed": 1,
+            "agent_id": agent_id,
+            "task_type": "SYSTEM_INFO",
+            "parameters": {},
+        },
+    )
+    assert non_boolean_confirmation.status_code == 422
     unknown = await client.post(
         "/api/v1/tasks",
         headers=operator_auth,
-        json={"agent_id": agent_id, "task_type": "REMOTE_SHELL", "parameters": {}},
+        json={"authorized_scope_confirmed": True, "agent_id": agent_id, "task_type": "REMOTE_SHELL", "parameters": {}},
     )
     assert unknown.status_code == 422
     arbitrary = await client.post(
         "/api/v1/tasks",
         headers=operator_auth,
-        json={"agent_id": agent_id, "task_type": "SYSTEM_INFO", "parameters": {"command": "whoami"}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "SYSTEM_INFO",
+            "parameters": {"command": "whoami"},
+        },
     )
     assert arbitrary.status_code == 422
     invalid_limit = await client.post(
         "/api/v1/tasks",
         headers=operator_auth,
-        json={"agent_id": agent_id, "task_type": "PROCESS_INVENTORY", "parameters": {"limit": 501}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "PROCESS_INVENTORY",
+            "parameters": {"limit": 501},
+        },
     )
     assert invalid_limit.status_code == 422
 
     created = await client.post(
         "/api/v1/tasks",
         headers=operator_auth,
-        json={"agent_id": agent_id, "task_type": "PROCESS_INVENTORY", "parameters": {"limit": 25}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "PROCESS_INVENTORY",
+            "parameters": {"limit": 25},
+        },
     )
     assert created.status_code == 201, created.text
     task_id = created.json()["id"]
     assert created.json()["status"] == "QUEUED"
     assert created.json()["agent_name"] == "lab-node-01"
     assert created.json()["requested_by_email"] == "operator@example.local"
+    created_audit = await client.get(
+        "/api/v1/audit",
+        params={"search": "TASK_CREATED"},
+        headers=authorization(admin_tokens),
+    )
+    assert created_audit.status_code == 200, created_audit.text
+    created_events = [
+        item
+        for item in created_audit.json()["items"]
+        if item["event_type"] == "TASK_CREATED" and item["metadata"].get("task_id") == task_id
+    ]
+    assert created_events
+    assert created_events[0]["metadata"]["authorized_scope_confirmed"] is True
     agent_auth = {"Authorization": f"Bearer {enrolled['credential']}"}
     polled = await client.get(f"/api/v1/agents/{agent_id}/tasks", headers=agent_auth)
     assert polled.status_code == 200, polled.text
@@ -109,6 +159,7 @@ async def test_task_parameter_defaults_match_agent_protocol(
         "PROCESS_INVENTORY": {"limit": 200},
         "INSTALLED_SOFTWARE": {"limit": 300},
         "LISTENING_PORTS": {"limit": 300},
+        "NETWORK_CONNECTIONS": {"limit": 200},
         "DISK_USAGE": {"all_partitions": False},
         "PING": {"message": None},
     }
@@ -116,7 +167,12 @@ async def test_task_parameter_defaults_match_agent_protocol(
         created = await client.post(
             "/api/v1/tasks",
             headers=authorization(operator_tokens),
-            json={"agent_id": payload["agent_id"], "task_type": task_type, "parameters": {}},
+            json={
+                "authorized_scope_confirmed": True,
+                "agent_id": payload["agent_id"],
+                "task_type": task_type,
+                "parameters": {},
+            },
         )
         assert created.status_code == 201, created.text
         assert created.json()["parameters"] == parameters
@@ -129,7 +185,12 @@ async def test_viewer_cannot_create_or_cancel_tasks(
     response = await client.post(
         "/api/v1/tasks",
         headers=authorization(viewer_tokens),
-        json={"agent_id": payload["agent_id"], "task_type": "SYSTEM_INFO", "parameters": {}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": payload["agent_id"],
+            "task_type": "SYSTEM_INFO",
+            "parameters": {},
+        },
     )
     assert response.status_code == 403
 
@@ -139,7 +200,12 @@ async def test_failed_result_validation(client: httpx.AsyncClient, admin_tokens:
     created = await client.post(
         "/api/v1/tasks",
         headers=authorization(operator_tokens),
-        json={"agent_id": payload["agent_id"], "task_type": "PING", "parameters": {"message": "hello"}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": payload["agent_id"],
+            "task_type": "PING",
+            "parameters": {"message": "hello"},
+        },
     )
     task_id = created.json()["id"]
     agent_auth = {"Authorization": f"Bearer {enrolled['credential']}"}
@@ -235,7 +301,12 @@ async def test_dashboard_expires_stale_running_tasks_with_audit(
     created = await client.post(
         "/api/v1/tasks",
         headers=authorization(operator_tokens),
-        json={"agent_id": payload["agent_id"], "task_type": "PING", "parameters": {}},
+        json={
+            "authorized_scope_confirmed": True,
+            "agent_id": payload["agent_id"],
+            "task_type": "PING",
+            "parameters": {},
+        },
     )
     task_id = created.json()["id"]
     agent_auth = {"Authorization": f"Bearer {enrolled['credential']}"}
@@ -274,7 +345,7 @@ async def test_overdue_tasks_cannot_transition_before_the_expiration_sweep(
         created = await client.post(
             "/api/v1/tasks",
             headers=operator_auth,
-            json={"agent_id": agent_id, "task_type": "PING", "parameters": {}},
+            json={"authorized_scope_confirmed": True, "agent_id": agent_id, "task_type": "PING", "parameters": {}},
         )
         task_id = created.json()["id"]
         polled = await client.get(f"/api/v1/agents/{agent_id}/tasks", headers=agent_auth)

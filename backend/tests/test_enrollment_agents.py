@@ -16,7 +16,7 @@ def identity(agent_id: str | None = None, *, ip: str = "10.20.30.40") -> dict:
         "agent_id": agent_id or str(uuid.uuid4()),
         "name": "lab-node-01",
         "hostname": "lab-node-01",
-        "username": "kandor",
+        "username": "ashborne",
         "operating_system": "Linux",
         "os_version": "6.8",
         "architecture": "x86_64",
@@ -143,7 +143,7 @@ async def test_demo_enrollment_is_dev_only_secret_gated_and_rotates(client: http
     payload = identity()
     denied = await client.post("/api/v1/enrollment/demo", json=payload)
     assert denied.status_code == 401
-    headers = {"X-Kandor-Demo-Secret": "demo-test-secret-1234567890"}
+    headers = {"X-Ashborne-Demo-Secret": "demo-test-secret-1234567890"}
     first = await client.post("/api/v1/enrollment/demo", json=payload, headers=headers)
     assert first.status_code == 201
     second = await client.post("/api/v1/enrollment/demo", json=payload, headers=headers)

@@ -19,7 +19,7 @@ _URL_PASSWORD = re.compile(r"(?i)([a-z][a-z0-9+.-]*://[^:/@\s]+:)[^@/\s]+(@)")
 
 
 def redact_log_text(value: str) -> str:
-    """Remove common KANDOR secret forms before a record reaches a handler."""
+    """Remove common ASHBORNE secret forms before a record reaches a handler."""
     value = _BEARER_TOKEN.sub("Bearer [redacted]", value)
     value = _SENSITIVE_VALUE.sub(lambda match: f"{match.group(1)}{match.group(2)}[redacted]", value)
     value = _OPAQUE_TOKEN.sub("[redacted]", value)

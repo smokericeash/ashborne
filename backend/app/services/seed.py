@@ -9,11 +9,11 @@ from app.auth.security import hash_password
 from app.core.config import Settings, get_settings
 from app.models import Role, RoleName, User
 
-logger = logging.getLogger("kandor.seed")
+logger = logging.getLogger("ashborne.seed")
 
 ROLE_DESCRIPTIONS = {
     RoleName.ADMINISTRATOR: "Full platform administration",
-    RoleName.OPERATOR: "Agent operations and approved diagnostic tasking",
+    RoleName.OPERATOR: "Lab-host operations and approved adversary-emulation tasking",
     RoleName.VIEWER: "Read-only platform access",
 }
 
@@ -35,9 +35,9 @@ async def seed_development(db: AsyncSession, settings: Settings | None = None) -
     if config.environment == "production":
         raise RuntimeError("development seed is disabled in production")
     candidates = [
-        ("admin@example.local", "KANDOR Administrator", RoleName.ADMINISTRATOR, config.admin_password),
-        ("operator@example.local", "KANDOR Operator", RoleName.OPERATOR, config.operator_password),
-        ("viewer@example.local", "KANDOR Viewer", RoleName.VIEWER, config.viewer_password),
+        ("admin@example.local", "ASHBORNE Administrator", RoleName.ADMINISTRATOR, config.admin_password),
+        ("operator@example.local", "ASHBORNE Operator", RoleName.OPERATOR, config.operator_password),
+        ("viewer@example.local", "ASHBORNE Viewer", RoleName.VIEWER, config.viewer_password),
     ]
     created: list[str] = []
     for email, display_name, role, password in candidates:

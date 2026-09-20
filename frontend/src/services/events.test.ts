@@ -31,7 +31,7 @@ describe("SSE event parsing", () => {
 
   it("refreshes an unauthorized stream and suppresses keepalive events", async () => {
     vi.resetModules();
-    sessionStorage.setItem("kandor.refresh_token", "refresh-stream");
+    sessionStorage.setItem("ashborne.refresh_token", "refresh-stream");
     const encoded = new TextEncoder().encode(
       'event: keepalive\ndata: {"event":"keepalive","data":{}}\n\n' +
         'event: task.created\ndata: {"event":"task.created","data":{"task_id":"task-1"}}\n\n',

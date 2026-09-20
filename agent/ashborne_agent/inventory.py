@@ -1,4 +1,4 @@
-"""Bounded, read-only host diagnostics used by explicitly allowlisted tasks.
+"""Bounded, read-only host observations used by explicitly allowlisted tasks.
 
 This module deliberately has no subprocess or shell integration. Inventory is
 collected through Python and psutil APIs, and large collections are capped.
@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import getpass
 import importlib.metadata
+import ipaddress
 import os
 import platform
 import socket
+import stat
+import tempfile
 import time
 from collections.abc import Iterable
 from contextlib import suppress
@@ -20,7 +23,7 @@ from typing import Any
 
 import psutil
 
-from kandor_agent import __version__
+from ashborne_agent import __version__
 
 MAX_INTERFACES = 64
 MAX_ADDRESSES_PER_INTERFACE = 16
@@ -28,6 +31,9 @@ MAX_DISKS = 64
 MAX_PROCESSES = 500
 MAX_SOFTWARE = 500
 MAX_PORTS = 500
+MAX_CONNECTIONS = 500
+MAX_ROUTES = 256
+MAX_GROUPS = 64
 
 
 def utc_now() -> str:
@@ -71,12 +77,83 @@ def get_system_info(_: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def get_quick_recon(_: dict[str, Any]) -> dict[str, Any]:
+    """Return a bounded local-host baseline without active network probing."""
+
+    interfaces = get_network_interfaces({})
+    listeners = get_listening_ports({"limit": 100})
+    routes = get_route_table({})
+    return {
+        "scope": "local_host_only",
+        "active_network_probing": False,
+        "system": get_system_info({}),
+        "security_context": get_security_context({}),
+        "uptime": get_uptime({}),
+        "network": {
+            "interfaces": interfaces["interfaces"],
+            "interfaces_truncated": interfaces["truncated"],
+            "listening_ports": listeners["listeners"],
+            "listeners_truncated": listeners["truncated"],
+            "routes": routes["routes"],
+            "routes_supported": routes["supported"],
+            "routes_truncated": routes["truncated"],
+        },
+        "file_system": get_file_system_overview({}),
+    }
+
+
 def get_hostname(_: dict[str, Any]) -> dict[str, str]:
     return {"hostname": socket.gethostname()}
 
 
 def get_current_user(_: dict[str, Any]) -> dict[str, Any]:
     return {"username": _current_user(), "uid": _safe_uid(), "gid": _safe_gid()}
+
+
+def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
+    uid = _safe_uid()
+    gid = _safe_gid()
+    effective_uid = os.geteuid() if hasattr(os, "geteuid") else uid
+    effective_gid = os.getegid() if hasattr(os, "getegid") else gid
+    elevated: bool | None = effective_uid == 0 if effective_uid is not None else None
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except (AttributeError, OSError):
+            elevated = None
+
+    group_ids: list[int] = []
+    if hasattr(os, "getgroups"):
+        with suppress(OSError):
+            group_ids = sorted(set(os.getgroups()))[:MAX_GROUPS]
+
+    no_new_privileges: bool | None = None
+    effective_capabilities: str | None = None
+    status_path = Path("/proc/self/status")
+    if status_path.is_file():
+        try:
+            for line in status_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("NoNewPrivs:"):
+                    no_new_privileges = line.partition(":")[2].strip() == "1"
+                elif line.startswith("CapEff:"):
+                    effective_capabilities = line.partition(":")[2].strip()[:32]
+        except OSError:
+            pass
+
+    return {
+        "username": _current_user(),
+        "uid": uid,
+        "effective_uid": effective_uid,
+        "gid": gid,
+        "effective_gid": effective_gid,
+        "group_ids": group_ids,
+        "group_names": _group_names(group_ids),
+        "is_elevated": elevated,
+        "no_new_privileges": no_new_privileges,
+        "effective_capabilities_mask": effective_capabilities,
+    }
 
 
 def get_cpu_info(_: dict[str, Any]) -> dict[str, Any]:
@@ -157,6 +234,24 @@ def get_disk_usage(parameters: dict[str, Any]) -> dict[str, Any]:
     return {"partitions": partitions, "truncated": len(seen_mountpoints) > len(partitions)}
 
 
+def get_file_system_overview(_: dict[str, Any]) -> dict[str, Any]:
+    """Describe fixed local locations without reading file contents or accepting paths."""
+
+    root = Path.cwd().anchor or os.sep
+    locations = {
+        "working_directory": Path.cwd(),
+        "home_directory": Path.home(),
+        "temporary_directory": Path(tempfile.gettempdir()),
+        "root_directory": Path(root),
+    }
+    return {
+        "scope": "fixed_locations_only",
+        "contents_collected": False,
+        "locations": {name: _path_metadata(path) for name, path in locations.items()},
+        "volumes": get_disk_usage({"all_partitions": False})["partitions"],
+    }
+
+
 def get_network_interfaces(_: dict[str, Any]) -> dict[str, Any]:
     try:
         address_map = psutil.net_if_addrs()
@@ -194,6 +289,69 @@ def get_network_interfaces(_: dict[str, Any]) -> dict[str, Any]:
         "interfaces": interfaces,
         "truncated": len(address_map) > len(interfaces),
         "primary_ip_address": primary_ip_address(),
+    }
+
+
+def get_network_connections(parameters: dict[str, Any]) -> dict[str, Any]:
+    limit = parameters.get("limit", 200)
+    connections: list[dict[str, Any]] = []
+    try:
+        candidates = psutil.net_connections(kind="inet")
+    except (OSError, psutil.AccessDenied, psutil.Error):
+        candidates = []
+    for connection in candidates:
+        pid = connection.pid
+        process_name = None
+        if pid is not None:
+            with suppress(psutil.Error, OSError):
+                process_name = _bounded_text(psutil.Process(pid).name(), 255)
+        connections.append(
+            {
+                "transport": "tcp" if connection.type == socket.SOCK_STREAM else "udp",
+                "family": _address_family_name(connection.family),
+                "status": _bounded_text(connection.status, 32),
+                "local": _endpoint(connection.laddr),
+                "remote": _endpoint(connection.raddr),
+                "pid": pid,
+                "process_name": process_name,
+            }
+        )
+    connections.sort(
+        key=lambda value: (
+            value["transport"],
+            str(value["local"]),
+            str(value["remote"]),
+            value["pid"] if value["pid"] is not None else -1,
+        )
+    )
+    return {
+        "connections": connections[:limit],
+        "limit": limit,
+        "truncated": len(connections) > limit,
+        "dns_resolution_performed": False,
+    }
+
+
+def get_route_table(_: dict[str, Any]) -> dict[str, Any]:
+    """Read the local Linux route table without starting an OS command."""
+
+    routes: list[dict[str, Any]] = []
+    source_files: list[str] = []
+    collection_limit = MAX_ROUTES + 1
+    ipv4_path = Path("/proc/net/route")
+    if ipv4_path.is_file():
+        source_files.append(str(ipv4_path))
+        routes.extend(_linux_ipv4_routes(ipv4_path, collection_limit))
+    remaining = max(0, collection_limit - len(routes))
+    ipv6_path = Path("/proc/net/ipv6_route")
+    if remaining and ipv6_path.is_file():
+        source_files.append(str(ipv6_path))
+        routes.extend(_linux_ipv6_routes(ipv6_path, remaining))
+    return {
+        "routes": routes[:MAX_ROUTES],
+        "supported": bool(source_files),
+        "source": source_files or None,
+        "truncated": len(routes) > MAX_ROUTES,
     }
 
 
@@ -489,6 +647,128 @@ def _address_family_name(value: object) -> str:
         getattr(psutil, "AF_LINK", object()): "MAC",
     }
     return names.get(value, str(value))
+
+
+def _endpoint(value: object) -> dict[str, Any] | None:
+    if not value:
+        return None
+    try:
+        address = getattr(value, "ip", value[0])  # type: ignore[index]
+        port = getattr(value, "port", value[1])  # type: ignore[index]
+    except (IndexError, TypeError):
+        return None
+    if port is None:
+        return None
+    return {"address": _bounded_text(address, 255), "port": int(port)}
+
+
+def _path_metadata(path: Path) -> dict[str, Any]:
+    try:
+        resolved = path.resolve(strict=False)
+    except OSError:
+        resolved = path
+    result: dict[str, Any] = {
+        "path": str(resolved)[:1024],
+        "exists": path.exists(),
+        "is_directory": path.is_dir(),
+        "readable": os.access(path, os.R_OK),
+        "writable": os.access(path, os.W_OK),
+        "executable": os.access(path, os.X_OK),
+    }
+    try:
+        metadata = path.stat()
+        result.update(
+            {
+                "mode": oct(stat.S_IMODE(metadata.st_mode)),
+                "owner_uid": getattr(metadata, "st_uid", None),
+                "owner_gid": getattr(metadata, "st_gid", None),
+            }
+        )
+    except (OSError, PermissionError):
+        result.update({"mode": None, "owner_uid": None, "owner_gid": None})
+    return result
+
+
+def _group_names(group_ids: list[int]) -> list[str]:
+    if not group_ids or os.name == "nt":
+        return []
+    try:
+        group_module = importlib.import_module("grp")
+    except ImportError:
+        return []
+    lookup_group = getattr(group_module, "getgrgid", None)
+    if not callable(lookup_group):
+        return []
+    names: list[str] = []
+    for group_id in group_ids[:MAX_GROUPS]:
+        with suppress(KeyError):
+            names.append(str(lookup_group(group_id).gr_name)[:255])
+    return names
+
+
+def _linux_ipv4_routes(path: Path, limit: int) -> list[dict[str, Any]]:
+    routes: list[dict[str, Any]] = []
+    try:
+        with path.open(encoding="ascii", errors="replace") as stream:
+            next(stream, None)
+            for line in stream:
+                fields = line.split()
+                if len(fields) < 8:
+                    continue
+                try:
+                    destination = socket.inet_ntoa(bytes.fromhex(fields[1])[::-1])
+                    gateway = socket.inet_ntoa(bytes.fromhex(fields[2])[::-1])
+                    mask = socket.inet_ntoa(bytes.fromhex(fields[7])[::-1])
+                    network = ipaddress.IPv4Network((destination, mask), strict=False)
+                    metric = int(fields[6])
+                except (OSError, ValueError):
+                    continue
+                routes.append(
+                    {
+                        "family": "IPv4",
+                        "interface": fields[0][:255],
+                        "destination": str(network),
+                        "gateway": None if gateway == "0.0.0.0" else gateway,
+                        "metric": metric,
+                    }
+                )
+                if len(routes) >= limit:
+                    break
+    except OSError:
+        return []
+    return routes
+
+
+def _linux_ipv6_routes(path: Path, limit: int) -> list[dict[str, Any]]:
+    routes: list[dict[str, Any]] = []
+    try:
+        with path.open(encoding="ascii", errors="replace") as stream:
+            for line in stream:
+                fields = line.split()
+                if len(fields) < 10:
+                    continue
+                try:
+                    prefix = int(fields[1], 16)
+                    destination = ipaddress.IPv6Address(int(fields[0], 16))
+                    network = ipaddress.IPv6Network((destination, prefix), strict=False)
+                    gateway_address = ipaddress.IPv6Address(int(fields[4], 16))
+                    metric = int(fields[5], 16)
+                except ValueError:
+                    continue
+                routes.append(
+                    {
+                        "family": "IPv6",
+                        "interface": fields[-1][:255],
+                        "destination": str(network),
+                        "gateway": None if gateway_address.is_unspecified else str(gateway_address),
+                        "metric": metric,
+                    }
+                )
+                if len(routes) >= limit:
+                    break
+    except OSError:
+        return []
+    return routes
 
 
 def _bounded_text(value: object, limit: int) -> str | None:

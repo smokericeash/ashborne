@@ -1,4 +1,4 @@
-"""Command-line entry point for the visible, non-persistent KANDOR agent."""
+"""Command-line entry point for the visible, non-persistent ASHBORNE agent."""
 
 from __future__ import annotations
 
@@ -13,40 +13,40 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from kandor_agent import __version__
-from kandor_agent.client import (
+from ashborne_agent import __version__
+from ashborne_agent.client import (
     AgentAPIError,
+    AshborneClient,
     AuthenticationError,
-    KandorClient,
     enrollment_identity,
 )
-from kandor_agent.config import AgentConfig, ConfigError, default_config_path
-from kandor_agent.heartbeat import AgentRunner
-from kandor_agent.logging import configure_logging
-from kandor_agent.models import ProtocolError
-from kandor_agent.outbox import OutboxError, ResultOutbox
+from ashborne_agent.config import AgentConfig, ConfigError, default_config_path
+from ashborne_agent.heartbeat import AgentRunner
+from ashborne_agent.logging import configure_logging
+from ashborne_agent.models import ProtocolError
+from ashborne_agent.outbox import OutboxError, ResultOutbox
 
-LOG = logging.getLogger("kandor_agent.main")
+LOG = logging.getLogger("ashborne_agent.main")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="kandor-agent",
-        description="KANDOR - Self-Hosted Security Agent Orchestration Platform",
+        prog="ashborne-agent",
+        description="ASHBORNE - Adversary Emulation & Offensive Security Lab Platform",
     )
-    parser.add_argument("--version", action="version", version=f"kandor-agent {__version__}")
+    parser.add_argument("--version", action="version", version=f"ashborne-agent {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     enroll = commands.add_parser("enroll", help="enroll using a one-time token")
     _add_config_argument(enroll)
-    enroll.add_argument("--server", default=os.getenv("KANDOR_SERVER_URL"))
-    enroll.add_argument("--token", default=os.getenv("KANDOR_ENROLLMENT_TOKEN"))
-    enroll.add_argument("--name", default=os.getenv("KANDOR_AGENT_NAME"))
-    enroll.add_argument("--ca-bundle", default=os.getenv("KANDOR_CA_BUNDLE"))
+    enroll.add_argument("--server", default=os.getenv("ASHBORNE_SERVER_URL"))
+    enroll.add_argument("--token", default=os.getenv("ASHBORNE_ENROLLMENT_TOKEN"))
+    enroll.add_argument("--name", default=os.getenv("ASHBORNE_AGENT_NAME"))
+    enroll.add_argument("--ca-bundle", default=os.getenv("ASHBORNE_CA_BUNDLE"))
     enroll.add_argument(
         "--allow-insecure-http",
         action="store_true",
-        default=_env_bool("KANDOR_ALLOW_INSECURE_HTTP", False),
+        default=_env_bool("ASHBORNE_ALLOW_INSECURE_HTTP", False),
         help="allow plain HTTP for an isolated local lab only",
     )
     enroll.add_argument("--force", action="store_true", help="replace an existing credential")
@@ -54,21 +54,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = commands.add_parser("run", help="send heartbeats and execute allowlisted tasks")
     _add_config_argument(run)
-    run.add_argument("--server", default=os.getenv("KANDOR_SERVER_URL"))
-    run.add_argument("--name", default=os.getenv("KANDOR_AGENT_NAME"))
-    run.add_argument("--ca-bundle", default=os.getenv("KANDOR_CA_BUNDLE"))
+    run.add_argument("--server", default=os.getenv("ASHBORNE_SERVER_URL"))
+    run.add_argument("--name", default=os.getenv("ASHBORNE_AGENT_NAME"))
+    run.add_argument("--ca-bundle", default=os.getenv("ASHBORNE_CA_BUNDLE"))
     run.add_argument(
         "--allow-insecure-http",
         action="store_true",
-        default=_env_bool("KANDOR_ALLOW_INSECURE_HTTP", False),
+        default=_env_bool("ASHBORNE_ALLOW_INSECURE_HTTP", False),
         help="allow plain HTTP for an isolated local lab only",
     )
     run.add_argument(
         "--heartbeat-interval",
         type=float,
-        default=_env_float("KANDOR_HEARTBEAT_INTERVAL"),
+        default=_env_float("ASHBORNE_HEARTBEAT_INTERVAL"),
     )
-    run.add_argument("--poll-interval", type=float, default=_env_float("KANDOR_POLL_INTERVAL"))
+    run.add_argument("--poll-interval", type=float, default=_env_float("ASHBORNE_POLL_INTERVAL"))
     run.add_argument("--once", action="store_true", help="perform one poll cycle and exit")
     _add_logging_arguments(run)
 
@@ -82,7 +82,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         parser = build_parser()
     except ConfigError as exc:
-        print(f"KANDOR configuration error: {exc}", file=sys.stderr)
+        print(f"ASHBORNE configuration error: {exc}", file=sys.stderr)
         return 2
     arguments = parser.parse_args(argv)
     try:
@@ -93,13 +93,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "status":
             return _status(arguments)
     except (ConfigError, OutboxError, ValueError) as exc:
-        print(f"KANDOR configuration error: {exc}", file=sys.stderr)
+        print(f"ASHBORNE configuration error: {exc}", file=sys.stderr)
         return 2
     except AuthenticationError as exc:
-        print(f"KANDOR authentication error: {exc}", file=sys.stderr)
+        print(f"ASHBORNE authentication error: {exc}", file=sys.stderr)
         return 3
     except (AgentAPIError, ProtocolError) as exc:
-        print(f"KANDOR API error: {exc}", file=sys.stderr)
+        print(f"ASHBORNE API error: {exc}", file=sys.stderr)
         return 4
     except KeyboardInterrupt:
         return 130
@@ -116,9 +116,9 @@ def _enroll(arguments: argparse.Namespace) -> int:
             raise ConfigError("agent is already enrolled; use --force to replace its credential")
     server_url = arguments.server or (existing.server_url if existing else None)
     if not server_url:
-        raise ConfigError("--server or KANDOR_SERVER_URL is required")
+        raise ConfigError("--server or ASHBORNE_SERVER_URL is required")
     if not arguments.token:
-        raise ConfigError("--token or KANDOR_ENROLLMENT_TOKEN is required")
+        raise ConfigError("--token or ASHBORNE_ENROLLMENT_TOKEN is required")
 
     if existing:
         config = replace(
@@ -138,7 +138,7 @@ def _enroll(arguments: argparse.Namespace) -> int:
         # Persist the UUID before using a one-time token so a retry keeps identity.
         config.save(config_path)
 
-    with KandorClient(config) as client:
+    with AshborneClient(config) as client:
         credential = client.enroll(arguments.token, enrollment_identity(config))
     config.credential = credential
     config.save(config_path)
@@ -146,7 +146,7 @@ def _enroll(arguments: argparse.Namespace) -> int:
         "Agent enrolled",
         extra={"event": "agent_enrolled", "agent_id": config.agent_id},
     )
-    print(f"KANDOR agent enrolled: {config.agent_id}")
+    print(f"ASHBORNE agent enrolled: {config.agent_id}")
     return 0
 
 
@@ -157,17 +157,17 @@ def _run(arguments: argparse.Namespace) -> int:
     stop_event = threading.Event()
     _install_signal_handlers(stop_event)
 
-    with KandorClient(config) as client:
+    with AshborneClient(config) as client:
         if not config.credential:
-            token = os.getenv("KANDOR_ENROLLMENT_TOKEN")
-            demo_secret = os.getenv("KANDOR_DEMO_BOOTSTRAP_SECRET")
+            token = os.getenv("ASHBORNE_ENROLLMENT_TOKEN")
+            demo_secret = os.getenv("ASHBORNE_DEMO_BOOTSTRAP_SECRET")
             if token:
                 config.credential = client.enroll(token, enrollment_identity(config))
             elif demo_secret:
                 config.credential = client.enroll_demo(demo_secret, enrollment_identity(config))
             else:
                 raise ConfigError(
-                    "agent is not enrolled; run `kandor-agent enroll` or provide a demo secret"
+                    "agent is not enrolled; run `ashborne-agent enroll` or provide a demo secret"
                 )
             config.save(config_path)
             LOG.info(
@@ -220,7 +220,7 @@ def _status(arguments: argparse.Namespace) -> int:
     if arguments.json:
         print(json.dumps(status, sort_keys=True))
     else:
-        print("KANDOR agent status")
+        print("ASHBORNE agent status")
         for key, value in status.items():
             print(f"  {key.replace('_', ' ').title()}: {value}")
     return 0 if config.credential else 1
@@ -250,9 +250,9 @@ def _add_logging_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--log-level",
         choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-        default=os.getenv("KANDOR_LOG_LEVEL", "INFO").upper(),
+        default=os.getenv("ASHBORNE_LOG_LEVEL", "INFO").upper(),
     )
-    parser.add_argument("--log-file", default=os.getenv("KANDOR_LOG_FILE"))
+    parser.add_argument("--log-file", default=os.getenv("ASHBORNE_LOG_FILE"))
 
 
 def _configure_cli_logging(arguments: argparse.Namespace, config_path: Path) -> None:

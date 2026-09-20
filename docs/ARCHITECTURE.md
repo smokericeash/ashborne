@@ -1,19 +1,19 @@
-# KANDOR architecture
+# ASHBORNE architecture
 
 ## System context
 
-KANDOR separates interactive user authentication, machine authentication, task orchestration, and diagnostic execution. The API is the sole writer to PostgreSQL and the only component that authorizes state transitions. Redis distributes ephemeral live events; PostgreSQL remains the source of truth.
+ASHBORNE separates interactive user authentication, machine authentication, task orchestration, and typed lab-action execution. The API is the sole writer to PostgreSQL and the only component that authorizes state transitions. Redis distributes ephemeral live events; PostgreSQL remains the source of truth.
 
 ```mermaid
 C4Context
-    title KANDOR system context
+    title ASHBORNE system context
     Person(operator, "Authorized operator", "Administers and observes owned lab systems")
-    System(kandor, "KANDOR", "Security agent orchestration management plane")
-    System_Ext(hosts, "Authorized hosts", "Run visible KANDOR diagnostic agents")
+    System(ashborne, "ASHBORNE", "Adversary-emulation lab management plane")
+    System_Ext(hosts, "Authorized lab hosts", "Run visible ASHBORNE agents")
     System_Ext(idp, "Secret/TLS infrastructure", "Protects runtime secrets and HTTPS certificates")
-    Rel(operator, kandor, "Uses", "HTTPS")
-    Rel(kandor, hosts, "Dispatches allowlisted tasks / receives telemetry", "HTTPS")
-    Rel(idp, kandor, "Provides secrets and certificates")
+    Rel(operator, ashborne, "Uses", "HTTPS")
+    Rel(ashborne, hosts, "Dispatches typed lab actions / receives results", "HTTPS")
+    Rel(idp, ashborne, "Provides secrets and certificates")
 ```
 
 ## Containers and data flow
@@ -23,7 +23,7 @@ flowchart LR
     Browser[Browser] -->|HTTPS| Proxy[Frontend nginx]
     Proxy --> SPA[React SPA]
     Proxy -->|/api and SSE| API[FastAPI]
-    Agent[KANDOR agent] -->|HTTPS + agent bearer credential| API
+    Agent[ASHBORNE agent] -->|HTTPS + agent bearer credential| API
     API -->|SQL transactions| PG[(PostgreSQL)]
     API <--> Redis[(Redis pub/sub + rate state)]
     API -->|text/event-stream| Proxy
@@ -44,10 +44,10 @@ The frontend nginx container is a same-origin gateway in the local deployment. I
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant UI as KANDOR UI
-    participant API as KANDOR API
+    participant UI as ASHBORNE UI
+    participant API as ASHBORNE API
     participant DB as PostgreSQL
-    participant Agent as kandor-agent
+    participant Agent as ashborne-agent
 
     Admin->>UI: Request enrollment token
     UI->>API: POST /api/v1/enrollment/tokens (admin JWT)
@@ -66,11 +66,11 @@ Replays encounter a consumed token and fail. Revocation and expiration are check
 
 ```mermaid
 sequenceDiagram
-    participant Agent as kandor-agent
-    participant API as KANDOR API
+    participant Agent as ashborne-agent
+    participant API as ASHBORNE API
     participant DB as PostgreSQL
     participant Events as Redis/SSE
-    participant UI as KANDOR UI
+    participant UI as ASHBORNE UI
 
     loop Configured interval with jitter
         Agent->>API: POST /api/v1/agents/{id}/heartbeat (agent credential)
@@ -90,14 +90,14 @@ Status is derived from `now - last_seen`: online at or below the online threshol
 ```mermaid
 sequenceDiagram
     actor Operator
-    participant UI as KANDOR UI
-    participant API as KANDOR API
+    participant UI as ASHBORNE UI
+    participant API as ASHBORNE API
     participant DB as PostgreSQL
-    participant Agent as kandor-agent
+    participant Agent as ashborne-agent
 
-    Operator->>UI: Choose agent + allowlisted diagnostic
-    UI->>API: POST /api/v1/tasks (operator JWT)
-    API->>API: Enforce role, enum, typed parameter schema
+    Operator->>UI: Choose in-scope host + typed lab action; confirm authorization
+    UI->>API: POST /api/v1/tasks (operator JWT + scope confirmation)
+    API->>API: Enforce role, confirmation, enum, typed parameter schema
     API->>DB: Insert QUEUED task + TASK_CREATED audit
     Agent->>API: GET /api/v1/agents/{id}/tasks
     API->>DB: Atomically claim task as DISPATCHED
@@ -146,5 +146,5 @@ Frequently filtered columns—normalized email, agent status/last seen, task sta
 - `backend/alembic`: reviewed schema migrations.
 - `backend/tests`: service and API security/lifecycle tests.
 - `frontend/src`: pages, reusable UI, typed API client, auth/event hooks, and tests.
-- `agent/kandor_agent`: configuration, secure enrollment, transport, heartbeat/poll loop, and handlers.
+- `agent/ashborne_agent`: configuration, secure enrollment, transport, heartbeat/poll loop, and handlers.
 - `docs`: architecture, protocol, deployment, operations, and threat model.

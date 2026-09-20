@@ -9,7 +9,7 @@ import tempfile
 from contextlib import suppress
 from pathlib import Path
 
-from kandor_agent.models import ProtocolError, TaskResult
+from ashborne_agent.models import ProtocolError, TaskResult
 
 MAX_OUTBOX_ITEMS = 100
 MAX_OUTBOX_BYTES = 50 * 1024 * 1024

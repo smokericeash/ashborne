@@ -1,1 +1,1 @@
-"""KANDOR backend tests."""
+"""ASHBORNE backend tests."""

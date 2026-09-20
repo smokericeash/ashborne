@@ -7,15 +7,15 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from kandor_agent.client import (
+from ashborne_agent.client import (
     AgentAPIError,
+    AshborneClient,
     AuthenticationError,
-    KandorClient,
     RetryPolicy,
     enrollment_identity,
 )
-from kandor_agent.config import AgentConfig
-from kandor_agent.models import ProtocolError, TaskResult
+from ashborne_agent.config import AgentConfig
+from ashborne_agent.models import ProtocolError, TaskResult
 
 
 def json_response(status: int, value: object, request: httpx.Request) -> httpx.Response:
@@ -35,7 +35,7 @@ def test_enrollment_uses_token_without_bearer(agent_config: AgentConfig) -> None
         captured["body"] = json.loads(request.content)
         return json_response(201, {"agent": {}, "credential": "n" * 32}, request)
 
-    with KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client:
+    with AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client:
         credential = client.enroll("one-time-token", {"agent_id": agent_config.agent_id})
 
     request = captured["request"]
@@ -48,11 +48,11 @@ def test_enrollment_uses_token_without_bearer(agent_config: AgentConfig) -> None
 def test_demo_enrollment_uses_dedicated_header(agent_config: AgentConfig) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/v1/enrollment/demo"
-        assert request.headers["X-Kandor-Demo-Secret"] == "development-secret"
+        assert request.headers["X-Ashborne-Demo-Secret"] == "development-secret"
         assert "token" not in json.loads(request.content)
         return json_response(201, {"credential": "d" * 32}, request)
 
-    with KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client:
+    with AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client:
         assert client.enroll_demo("development-secret", {"agent_id": agent_config.agent_id})
 
 
@@ -67,7 +67,7 @@ def test_reconnect_retries_transport_error(agent_config: AgentConfig) -> None:
             raise httpx.ConnectError("offline", request=request)
         return json_response(200, {"items": [], "count": 0}, request)
 
-    with KandorClient(
+    with AshborneClient(
         agent_config,
         transport=httpx.MockTransport(handler),
         sleeper=sleeps.append,
@@ -91,7 +91,7 @@ def test_retryable_api_error_honors_retry_after(agent_config: AgentConfig) -> No
             return response
         return json_response(200, {"items": [], "count": 0}, request)
 
-    with KandorClient(
+    with AshborneClient(
         agent_config,
         transport=httpx.MockTransport(handler),
         sleeper=sleeps.append,
@@ -110,7 +110,7 @@ def test_nonretryable_api_error_is_sanitized(agent_config: AgentConfig) -> None:
         return json_response(422, {"detail": "server secret detail"}, request)
 
     with (
-        KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client,
+        AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client,
         pytest.raises(AgentAPIError) as caught,
     ):
         client.pending_tasks()
@@ -129,7 +129,7 @@ def test_authentication_failures_are_not_retried(agent_config: AgentConfig, stat
         return json_response(status, {}, request)
 
     with (
-        KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client,
+        AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client,
         pytest.raises(AuthenticationError),
     ):
         client.pending_tasks()
@@ -163,7 +163,7 @@ def test_authenticated_lifecycle_contract(agent_config: AgentConfig) -> None:
             )
         return json_response(200, {"id": task_id}, request)
 
-    with KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client:
+    with AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client:
         client.heartbeat({"hostname": "test"})
         task = client.pending_tasks()[0]
         client.start_task(task.id)
@@ -195,7 +195,7 @@ def test_task_for_another_agent_is_rejected(agent_config: AgentConfig) -> None:
         )
 
     with (
-        KandorClient(agent_config, transport=httpx.MockTransport(handler)) as client,
+        AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client,
         pytest.raises(ProtocolError, match="another agent"),
     ):
         client.pending_tasks()
@@ -204,7 +204,7 @@ def test_task_for_another_agent_is_rejected(agent_config: AgentConfig) -> None:
 def test_invalid_enrollment_response_is_rejected(agent_config: AgentConfig) -> None:
     transport = httpx.MockTransport(lambda request: json_response(201, {"agent": {}}, request))
     with (
-        KandorClient(agent_config, transport=transport) as client,
+        AshborneClient(agent_config, transport=transport) as client,
         pytest.raises(ProtocolError, match="credential"),
     ):
         client.enroll("token", {"agent_id": agent_config.agent_id})
@@ -213,7 +213,7 @@ def test_invalid_enrollment_response_is_rejected(agent_config: AgentConfig) -> N
 def test_missing_credential_prevents_authenticated_request(agent_config: AgentConfig) -> None:
     agent_config.credential = None
     with (
-        KandorClient(agent_config, transport=httpx.MockTransport(lambda request: None)) as client,
+        AshborneClient(agent_config, transport=httpx.MockTransport(lambda request: None)) as client,
         pytest.raises(AuthenticationError, match="not enrolled"),
     ):
         client.pending_tasks()
@@ -229,7 +229,7 @@ def test_exhausted_retries_raise_connection_error(agent_config: AgentConfig) -> 
 
     policy = RetryPolicy(attempts=2, base_delay=0, jitter_ratio=0)
     with (
-        KandorClient(
+        AshborneClient(
             agent_config,
             transport=httpx.MockTransport(handler),
             retry_policy=policy,

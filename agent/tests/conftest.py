@@ -5,13 +5,13 @@ from uuid import uuid4
 
 import pytest
 
-from kandor_agent.config import AgentConfig
+from ashborne_agent.config import AgentConfig
 
 
 @pytest.fixture
 def agent_config(tmp_path: Path) -> AgentConfig:
     return AgentConfig(
-        server_url="https://kandor.example",
+        server_url="https://ashborne.example",
         agent_id=str(uuid4()),
         credential="c" * 32,
         name="pytest-agent",

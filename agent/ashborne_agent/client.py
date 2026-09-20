@@ -1,4 +1,4 @@
-"""TLS-verifying HTTP client for the KANDOR agent protocol."""
+"""TLS-verifying HTTP client for the ASHBORNE agent protocol."""
 
 from __future__ import annotations
 
@@ -13,17 +13,17 @@ from typing import Any
 
 import httpx
 
-from kandor_agent import __version__
-from kandor_agent.config import AgentConfig
-from kandor_agent.models import PendingTask, ProtocolError, TaskResult
+from ashborne_agent import __version__
+from ashborne_agent.config import AgentConfig
+from ashborne_agent.models import PendingTask, ProtocolError, TaskResult
 
-LOG = logging.getLogger("kandor_agent.client")
+LOG = logging.getLogger("ashborne_agent.client")
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_TASKS_PER_RESPONSE = 100
 
 
 class AgentAPIError(RuntimeError):
-    """A sanitized KANDOR API or transport error."""
+    """A sanitized ASHBORNE API or transport error."""
 
     def __init__(
         self,
@@ -65,7 +65,7 @@ class RetryPolicy:
         return float(base + jitter)
 
 
-class KandorClient:
+class AshborneClient:
     def __init__(
         self,
         config: AgentConfig,
@@ -91,11 +91,11 @@ class KandorClient:
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "User-Agent": f"kandor-agent/{__version__}",
+                "User-Agent": f"ashborne-agent/{__version__}",
             },
         )
 
-    def __enter__(self) -> KandorClient:
+    def __enter__(self) -> AshborneClient:
         return self
 
     def __exit__(self, *_: object) -> None:
@@ -119,7 +119,7 @@ class KandorClient:
             "/api/v1/enrollment/demo",
             json_body=identity,
             authenticated=False,
-            headers={"X-Kandor-Demo-Secret": bootstrap_secret},
+            headers={"X-Ashborne-Demo-Secret": bootstrap_secret},
         )
         return _extract_credential(response)
 
@@ -187,7 +187,7 @@ class KandorClient:
                     break
                 delay = self.retry_policy.delay(attempt, self._random())
                 LOG.warning(
-                    "KANDOR API transport failure; retrying",
+                    "ASHBORNE API transport failure; retrying",
                     extra={"event": "api_retry", "attempt": attempt, "delay_seconds": delay},
                 )
                 self._sleep(delay)
@@ -204,7 +204,7 @@ class KandorClient:
             if retryable and attempt < self.retry_policy.attempts:
                 delay = _retry_after(response) or self.retry_policy.delay(attempt, self._random())
                 LOG.warning(
-                    "KANDOR API returned a retryable status",
+                    "ASHBORNE API returned a retryable status",
                     extra={
                         "event": "api_retry",
                         "attempt": attempt,
@@ -215,20 +215,20 @@ class KandorClient:
                 self._sleep(delay)
                 continue
             raise AgentAPIError(
-                f"KANDOR API request failed with HTTP {response.status_code}",
+                f"ASHBORNE API request failed with HTTP {response.status_code}",
                 status_code=response.status_code,
                 retryable=retryable,
             )
 
         raise AgentAPIError(
-            "could not connect to the KANDOR API",
+            "could not connect to the ASHBORNE API",
             retryable=True,
         ) from last_transport_error
 
 
 def enrollment_identity(config: AgentConfig) -> dict[str, Any]:
     uname = __import__("platform").uname()
-    from kandor_agent.inventory import primary_ip_address
+    from ashborne_agent.inventory import primary_ip_address
 
     try:
         username = __import__("getpass").getuser()
@@ -253,7 +253,7 @@ def heartbeat_payload() -> dict[str, Any]:
 
     import psutil
 
-    from kandor_agent.inventory import primary_ip_address
+    from ashborne_agent.inventory import primary_ip_address
 
     memory = psutil.virtual_memory()
     return {
@@ -273,16 +273,16 @@ def heartbeat_payload() -> dict[str, Any]:
 def _decode_response(response: httpx.Response) -> Any:
     content = response.content
     if len(content) > MAX_RESPONSE_BYTES:
-        raise ProtocolError("KANDOR API response exceeds the local size limit")
+        raise ProtocolError("ASHBORNE API response exceeds the local size limit")
     if not content:
         return {}
     content_type = response.headers.get("content-type", "")
     if "json" not in content_type.casefold():
-        raise ProtocolError("KANDOR API returned a non-JSON response")
+        raise ProtocolError("ASHBORNE API returned a non-JSON response")
     try:
         return response.json()
     except ValueError as exc:
-        raise ProtocolError("KANDOR API returned invalid JSON") from exc
+        raise ProtocolError("ASHBORNE API returned invalid JSON") from exc
 
 
 def _extract_credential(response: object) -> str:

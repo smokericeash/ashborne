@@ -104,17 +104,22 @@ export interface Agent {
   uptime_seconds?: number | null;
   inventory?: AgentInventory | null;
   heartbeat_history?: Heartbeat[];
-  recent_tasks?: KandorTask[];
+  recent_tasks?: AshborneTask[];
 }
 
 export const TASK_TYPES = [
+  "QUICK_RECON",
   "SYSTEM_INFO",
   "HOSTNAME",
   "CURRENT_USER",
+  "SECURITY_CONTEXT",
   "CPU_INFO",
   "MEMORY_USAGE",
   "DISK_USAGE",
+  "FILE_SYSTEM_OVERVIEW",
   "NETWORK_INTERFACES",
+  "NETWORK_CONNECTIONS",
+  "ROUTE_TABLE",
   "UPTIME",
   "PROCESS_INVENTORY",
   "INSTALLED_SOFTWARE",
@@ -123,6 +128,59 @@ export const TASK_TYPES = [
   "PING",
 ] as const;
 export type TaskType = (typeof TASK_TYPES)[number];
+
+export const TASK_CATEGORIES = {
+  Recon: ["QUICK_RECON", "SYSTEM_INFO", "HOSTNAME", "CURRENT_USER", "UPTIME"],
+  "Host Enumeration": [
+    "CPU_INFO",
+    "MEMORY_USAGE",
+    "DISK_USAGE",
+    "PROCESS_INVENTORY",
+    "INSTALLED_SOFTWARE",
+  ],
+  "Privilege Enumeration": ["SECURITY_CONTEXT"],
+  Files: ["FILE_SYSTEM_OVERVIEW"],
+  Network: [
+    "NETWORK_INTERFACES",
+    "NETWORK_CONNECTIONS",
+    "ROUTE_TABLE",
+    "LISTENING_PORTS",
+  ],
+  "Agent Control": ["AGENT_HEALTH", "PING"],
+} as const satisfies Record<string, readonly TaskType[]>;
+export type TaskCategory = keyof typeof TASK_CATEGORIES;
+
+export const TASK_DESCRIPTIONS: Record<TaskType, string> = {
+  QUICK_RECON: "Collect a bounded, passive local-host baseline in one action.",
+  SYSTEM_INFO:
+    "Report operating system, kernel, architecture, and agent details.",
+  HOSTNAME: "Return the enrolled host name.",
+  CURRENT_USER: "Return the local identity running the agent.",
+  SECURITY_CONTEXT:
+    "Report elevation state, local IDs, groups, and sandbox controls.",
+  CPU_INFO: "Summarize processor capacity and current utilization.",
+  MEMORY_USAGE: "Summarize physical and swap memory utilization.",
+  DISK_USAGE: "Summarize mounted volume capacity.",
+  FILE_SYSTEM_OVERVIEW:
+    "Inspect fixed location metadata without reading file contents.",
+  NETWORK_INTERFACES: "List local interfaces and numeric addresses.",
+  NETWORK_CONNECTIONS:
+    "List bounded local socket state without DNS resolution.",
+  ROUTE_TABLE:
+    "Read the local route table where the platform exposes it safely.",
+  UPTIME: "Report boot time and uptime.",
+  PROCESS_INVENTORY: "List a bounded process inventory without command lines.",
+  INSTALLED_SOFTWARE: "List a bounded installed-software inventory.",
+  LISTENING_PORTS: "List local listening TCP and UDP endpoints.",
+  AGENT_HEALTH: "Report agent resource health and runtime state.",
+  PING: "Verify the authenticated task round trip.",
+};
+
+export const TASK_CATEGORY_BY_TYPE = Object.fromEntries(
+  Object.entries(TASK_CATEGORIES).flatMap(([category, taskTypes]) =>
+    taskTypes.map((taskType) => [taskType, category]),
+  ),
+) as Record<TaskType, TaskCategory>;
 
 export const TASK_STATUSES = [
   "QUEUED",
@@ -135,7 +193,7 @@ export const TASK_STATUSES = [
 ] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-export interface KandorTask {
+export interface AshborneTask {
   id: string;
   agent_id: string;
   agent_name?: string | null;
@@ -206,11 +264,11 @@ export interface DashboardMetrics {
 
 export interface DashboardActivity {
   latest_agents: Agent[];
-  recent_tasks: KandorTask[];
+  recent_tasks: AshborneTask[];
   audit_events: AuditEvent[];
 }
 
-export interface KandorSettings {
+export interface AshborneSettings {
   heartbeat_interval_seconds: number;
   degraded_threshold_seconds: number;
   offline_threshold_seconds: number;

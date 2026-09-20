@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { api } from "../services/api";
 import { operator, renderWithContexts, viewer } from "../test/render";
-import { TASK_TYPES, type KandorTask } from "../types";
+import { TASK_TYPES, type AshborneTask } from "../types";
 import { TaskForm } from "./TaskForm";
 
-const createdTask: KandorTask = {
+const createdTask: AshborneTask = {
   id: "task-1",
   agent_id: "agent-1",
   task_type: "LISTENING_PORTS",
@@ -17,7 +17,7 @@ const createdTask: KandorTask = {
 };
 
 describe("TaskForm", () => {
-  it("offers only allowlisted task enums and queues the selected diagnostic", async () => {
+  it("offers only typed lab actions and requires an authorization confirmation", async () => {
     const create = vi.spyOn(api.tasks, "create").mockResolvedValue(createdTask);
     const onCreated = vi.fn();
     const user = userEvent.setup();
@@ -31,22 +31,33 @@ describe("TaskForm", () => {
     );
 
     const select = screen.getByRole("combobox", {
-      name: "Approved diagnostic task",
+      name: "Approved lab action",
     });
     expect(
-      within(select)
-        .getAllByRole("option")
-        .map((option) => option.getAttribute("value")),
-    ).toEqual([...TASK_TYPES]);
+      new Set(
+        within(select)
+          .getAllByRole("option")
+          .map((option) => option.getAttribute("value")),
+      ),
+    ).toEqual(new Set(TASK_TYPES));
     expect(
       screen.queryByRole("textbox", { name: /command/i }),
     ).not.toBeInTheDocument();
 
     await user.selectOptions(select, "LISTENING_PORTS");
-    await user.click(screen.getByRole("button", { name: "Queue diagnostic" }));
+    const queueButton = screen.getByRole("button", {
+      name: "Queue lab action",
+    });
+    expect(queueButton).toBeDisabled();
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /explicitly included in the authorized lab scope/i,
+      }),
+    );
+    await user.click(queueButton);
 
     await waitFor(() =>
-      expect(create).toHaveBeenCalledWith("agent-1", "LISTENING_PORTS"),
+      expect(create).toHaveBeenCalledWith("agent-1", "LISTENING_PORTS", true),
     );
     expect(onCreated).toHaveBeenCalledWith(createdTask);
   });
@@ -62,7 +73,7 @@ describe("TaskForm", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /queue diagnostic/i }),
+      screen.queryByRole("button", { name: /queue lab action/i }),
     ).not.toBeInTheDocument();
   });
 });

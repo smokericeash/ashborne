@@ -20,14 +20,14 @@ class ConfigError(ValueError):
 
 
 def default_config_path() -> Path:
-    override = os.getenv("KANDOR_CONFIG")
+    override = os.getenv("ASHBORNE_CONFIG")
     if override:
         return Path(override).expanduser()
     if os.name == "nt":
         root = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        return root / "KANDOR" / "agent.json"
+        return root / "ASHBORNE" / "agent.json"
     root = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
-    return root / "kandor" / "agent.json"
+    return root / "ashborne" / "agent.json"
 
 
 def validate_server_url(value: str, *, allow_insecure_http: bool = False) -> str:
@@ -88,7 +88,7 @@ class AgentConfig:
         if not isinstance(self.name, str):
             raise ConfigError("agent name must be a string")
         if not self.name:
-            self.name = socket.gethostname()[:120] or f"kandor-{self.agent_id[:8]}"
+            self.name = socket.gethostname()[:120] or f"ashborne-{self.agent_id[:8]}"
         if len(self.name) > 120 or any(
             ord(character) < 32 or ord(character) == 127 for character in self.name
         ):

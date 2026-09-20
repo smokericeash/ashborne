@@ -21,7 +21,7 @@ class EventBroker:
         self._max_queue_size = max_queue_size
         self._instance_id = str(uuid.uuid4())
         self._redis = None
-        self._channel = "kandor:events:v1"
+        self._channel = "ashborne:events:v1"
         if redis_url:
             try:
                 from redis.asyncio import from_url
@@ -35,7 +35,7 @@ class EventBroker:
                     health_check_interval=30,
                 )
             except Exception:
-                logging.getLogger("kandor.events").warning("Redis unavailable; SSE is limited to this process")
+                logging.getLogger("ashborne.events").warning("Redis unavailable; SSE is limited to this process")
 
     async def publish(self, event_type: str, data: dict[str, Any]) -> None:
         event = {
@@ -57,7 +57,7 @@ class EventBroker:
                 envelope = {"origin": self._instance_id, "event": event}
                 await self._redis.publish(self._channel, json.dumps(envelope, separators=(",", ":")))
             except Exception:
-                logging.getLogger("kandor.events").warning("Redis event publish failed; local delivery continues")
+                logging.getLogger("ashborne.events").warning("Redis event publish failed; local delivery continues")
 
     async def _read_redis(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
         if self._redis is None:
@@ -89,7 +89,7 @@ class EventBroker:
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logging.getLogger("kandor.events").warning(
+                logging.getLogger("ashborne.events").warning(
                     "Redis event subscription interrupted; local delivery continues while reconnection is attempted"
                 )
                 await asyncio.sleep(retry_delay)
@@ -100,7 +100,7 @@ class EventBroker:
 
     async def subscribe(self) -> AsyncIterator[dict[str, Any]]:
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(self._max_queue_size)
-        redis_reader = asyncio.create_task(self._read_redis(queue), name="kandor-redis-event-reader")
+        redis_reader = asyncio.create_task(self._read_redis(queue), name="ashborne-redis-event-reader")
         async with self._lock:
             self._subscribers.add(queue)
         try:

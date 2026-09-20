@@ -9,7 +9,7 @@ const backendAgent = {
   agent_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   name: "lab-sensor-01",
   hostname: "lab-sensor-01",
-  username: "kandor",
+  username: "ashborne",
   operating_system: "Linux",
   os_version: "Debian 13",
   architecture: "x86_64",
@@ -85,7 +85,7 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("lab-sensor-01")).toBeInTheDocument();
     expect(screen.getByText("CPU_INFO")).toBeInTheDocument();
     expect(
-      within(screen.getByText("Total agents").parentElement!).getByText("3"),
+      within(screen.getByText("Lab hosts").parentElement!).getByText("3"),
     ).toBeInTheDocument();
     expect(screen.getByText("Linux: 2 agents")).toBeInTheDocument();
     expect(screen.getByText("Windows: 1 agents")).toBeInTheDocument();

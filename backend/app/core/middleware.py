@@ -185,13 +185,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     health_check_interval=30,
                 )
             except Exception:
-                logging.getLogger("kandor.rate_limit").warning("Redis unavailable; using in-process rate limiting")
+                logging.getLogger("ashborne.rate_limit").warning("Redis unavailable; using in-process rate limiting")
 
     async def _allow(self, key: str, limit: int) -> tuple[bool, int]:
         if self.redis is not None:
             epoch = int(time.time())
             bucket = epoch // self.window_seconds
-            redis_key = f"kandor:rate:{key}:{bucket}"
+            redis_key = f"ashborne:rate:{key}:{bucket}"
             try:
                 async with self.redis.pipeline(transaction=True) as pipe:
                     pipe.incr(redis_key)
@@ -200,7 +200,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 retry = self.window_seconds - (epoch % self.window_seconds)
                 return int(count) <= limit, max(1, retry)
             except Exception:
-                logging.getLogger("kandor.rate_limit").warning("Redis rate limiter failed; using local fallback")
+                logging.getLogger("ashborne.rate_limit").warning("Redis rate limiter failed; using local fallback")
         return await self.limiter.allow(key, limit, self.window_seconds)
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable]):

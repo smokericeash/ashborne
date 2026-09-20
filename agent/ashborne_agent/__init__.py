@@ -1,4 +1,4 @@
-"""KANDOR diagnostic agent.
+"""ASHBORNE authorized-lab agent.
 
 The package intentionally exposes a small, fixed task surface. It does not
 contain a general command runner and never invokes a shell.

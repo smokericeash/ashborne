@@ -5,8 +5,8 @@ import type {
   DashboardActivity,
   DashboardMetrics,
   EnrollmentToken,
-  KandorSettings,
-  KandorTask,
+  AshborneSettings,
+  AshborneTask,
   Paginated,
   Role,
   TaskType,
@@ -72,7 +72,7 @@ function paginated<T>(raw: any, normalize: (item: any) => T): Paginated<T> {
   };
 }
 
-export function normalizeTask(raw: any): KandorTask {
+export function normalizeTask(raw: any): AshborneTask {
   const requestedBy = raw?.requested_by;
   const requestedById =
     raw?.requested_by_id ??
@@ -90,7 +90,7 @@ export function normalizeTask(raw: any): KandorTask {
       raw?.requesting_user_email ??
       (typeof requestedBy === "object" ? requestedBy?.email : null),
     created_at: raw?.created_at,
-  } as KandorTask;
+  } as AshborneTask;
 }
 
 function asArray<T>(value: unknown, keys: string[]): T[] | undefined {
@@ -250,7 +250,7 @@ function normalizeInventory(value: unknown): Agent["inventory"] {
   return Object.keys(inventory).length ? inventory : null;
 }
 
-export function inventoryFromTasks(tasks: KandorTask[]): Agent["inventory"] {
+export function inventoryFromTasks(tasks: AshborneTask[]): Agent["inventory"] {
   const successful = [...tasks]
     .filter(
       (task) =>
@@ -552,10 +552,19 @@ export const api = {
       ),
     get: (id: string) =>
       request<any>(`/tasks/${encodeURIComponent(id)}`).then(normalizeTask),
-    create: (agentId: string, taskType: TaskType) =>
+    create: (
+      agentId: string,
+      taskType: TaskType,
+      authorizedScopeConfirmed: boolean,
+    ) =>
       request<any>("/tasks", {
         method: "POST",
-        body: { agent_id: agentId, task_type: taskType, parameters: {} },
+        body: {
+          agent_id: agentId,
+          task_type: taskType,
+          parameters: {},
+          authorized_scope_confirmed: authorizedScopeConfirmed,
+        },
       }).then(normalizeTask),
     cancel: (id: string) =>
       request<any>(`/tasks/${encodeURIComponent(id)}/cancel`, {
@@ -601,9 +610,12 @@ export const api = {
       request<void>(`/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   settings: {
-    get: () => request<KandorSettings>("/settings"),
-    update: (payload: KandorSettings) =>
-      request<KandorSettings>("/settings", { method: "PATCH", body: payload }),
+    get: () => request<AshborneSettings>("/settings"),
+    update: (payload: AshborneSettings) =>
+      request<AshborneSettings>("/settings", {
+        method: "PATCH",
+        body: payload,
+      }),
   },
   enrollment: {
     list: () => request<Paginated<EnrollmentToken>>("/enrollment/tokens"),

@@ -26,7 +26,7 @@ from app.services.tasks import expire_due_tasks, publish_task_expirations
 
 settings = get_settings()
 configure_logging(settings.log_level)
-logger = logging.getLogger("kandor.api")
+logger = logging.getLogger("ashborne.api")
 
 
 async def _status_monitor(stop: asyncio.Event) -> None:
@@ -62,8 +62,8 @@ async def lifespan(app: FastAPI):
         if created:
             logger.info("development identities created", extra={"event": "development_seed"})
     stop = asyncio.Event()
-    monitor = asyncio.create_task(_status_monitor(stop), name="kandor-agent-status-monitor")
-    logger.info("KANDOR API started", extra={"event": "startup"})
+    monitor = asyncio.create_task(_status_monitor(stop), name="ashborne-agent-status-monitor")
+    logger.info("ASHBORNE API started", extra={"event": "startup"})
     try:
         yield
     finally:
@@ -73,15 +73,15 @@ async def lifespan(app: FastAPI):
             await monitor
         await event_broker.close()
         await close_database()
-        logger.info("KANDOR API stopped", extra={"event": "shutdown"})
+        logger.info("ASHBORNE API stopped", extra={"event": "shutdown"})
 
 
 app = FastAPI(
-    title="KANDOR API",
-    summary="Self-Hosted Security Agent Orchestration Platform",
+    title="ASHBORNE API",
+    summary="Adversary Emulation & Offensive Security Lab Platform",
     description=(
-        "Management API for authenticated users and explicitly enrolled KANDOR agents. "
-        "Only allowlisted diagnostic tasks are accepted; arbitrary command execution is intentionally unsupported."
+        "Management API for authenticated users and explicitly enrolled ASHBORNE agents. "
+        "Only authorized, typed lab actions are accepted; arbitrary command execution is intentionally unsupported."
     ),
     version=__version__,
     docs_url=None if settings.environment == "production" else "/docs",
@@ -107,7 +107,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Kandor-Demo-Secret"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Ashborne-Demo-Secret"],
     expose_headers=["X-Request-ID", "Retry-After"],
 )
 app.add_middleware(SecurityHeadersMiddleware)
@@ -136,7 +136,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
 
 @app.get("/health/live", tags=["health"])
 async def health_live() -> dict[str, str]:
-    return {"status": "ok", "service": "kandor-backend", "version": __version__}
+    return {"status": "ok", "service": "ashborne-backend", "version": __version__}
 
 
 @app.get("/health/ready", tags=["health"])
@@ -151,7 +151,7 @@ async def health_ready() -> JSONResponse:
 
 @app.get("/", include_in_schema=False)
 async def root() -> dict[str, str]:
-    return {"name": "KANDOR", "version": __version__, "docs": app.docs_url or app.openapi_url or "disabled"}
+    return {"name": "ASHBORNE", "version": __version__, "docs": app.docs_url or app.openapi_url or "disabled"}
 
 
 app.include_router(api_router)

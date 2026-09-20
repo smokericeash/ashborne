@@ -10,7 +10,7 @@ import { useAuth } from "./useAuth";
 const authenticatedUser = {
   id: "11111111-1111-4111-8111-111111111111",
   email: "admin@example.local",
-  display_name: "KANDOR Administrator",
+  display_name: "ASHBORNE Administrator",
   role: "ADMINISTRATOR" as const,
   is_active: true,
   created_at: "2026-09-01T00:00:00Z",
@@ -72,8 +72,10 @@ describe("authentication flow", () => {
       password: "CorrectHorse123",
     });
     expect(tokenStore.getAccess()).toBe("access-one");
-    expect(sessionStorage.getItem("kandor.refresh_token")).toBe("refresh-one");
-    expect(sessionStorage.getItem("kandor.access_token")).toBeNull();
+    expect(sessionStorage.getItem("ashborne.refresh_token")).toBe(
+      "refresh-one",
+    );
+    expect(sessionStorage.getItem("ashborne.access_token")).toBeNull();
   });
 
   it("shows a safe invalid-credentials message", async () => {

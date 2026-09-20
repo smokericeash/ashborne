@@ -1,4 +1,4 @@
-# KANDOR security policy
+# ASHBORNE security policy
 
 ## Supported versions
 
@@ -10,7 +10,7 @@ Do not publish an exploitable report or live credentials in an issue. Use GitHub
 
 ## Deployment responsibilities
 
-KANDOR ships secure defaults but cannot secure an untrusted host. Production operators must:
+ASHBORNE ships secure defaults but cannot secure an untrusted host. Production operators must:
 
 - replace every `CHANGE_ME` value and store secrets outside the repository;
 - terminate TLS with a valid certificate and redirect HTTP to HTTPS;
@@ -31,10 +31,10 @@ The agent must only be installed with system-owner authorization. It is intentio
 - Enrollment tokens expire, are revocable, and are consumed atomically once.
 - Access tokens are short lived; refresh tokens rotate and old tokens are rejected.
 - Authorization is checked server-side for every protected operation.
-- Tasks are closed-enum diagnostics, never command text.
+- Tasks are closed-enum lab actions, never command text.
+- Task creation requires an explicit authorized-scope confirmation recorded in audit metadata.
 - Audit records have no update/delete API.
 - Certificate verification is enabled for production agent traffic.
 - Logs redact secrets and sanitized API errors do not disclose internals.
 
 See `docs/THREAT_MODEL.md` for assets, boundaries, abuse cases, and residual risks.
-

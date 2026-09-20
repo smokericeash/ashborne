@@ -20,21 +20,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN groupadd --system kandor && useradd --system --gid kandor --create-home kandor
+RUN groupadd --system ashborne && useradd --system --gid ashborne --create-home ashborne
 
 WORKDIR /app
 COPY --from=builder /wheels /wheels
-RUN python -m pip install --no-index --find-links=/wheels kandor-server && \
+RUN python -m pip install --no-index --find-links=/wheels ashborne-server && \
     rm -rf /wheels
 
 COPY alembic.ini ./
 COPY alembic ./alembic
 
-RUN chown -R kandor:kandor /app
-USER kandor
+RUN chown -R ashborne:ashborne /app
+USER ashborne
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)" || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=${KANDOR_FORWARDED_ALLOW_IPS:-127.0.0.1}"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=${ASHBORNE_FORWARDED_ALLOW_IPS:-127.0.0.1}"]

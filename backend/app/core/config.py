@@ -14,7 +14,7 @@ PROJECT_DIRECTORY = BACKEND_DIRECTORY.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="KANDOR_",
+        env_prefix="ASHBORNE_",
         # Resolve dotenv files from this module, not the process working directory.
         # This keeps `uvicorn app.main:app` and `uvicorn backend.app.main:app`
         # consistent when launched from the backend or repository root.
@@ -24,14 +24,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "KANDOR"
+    app_name: str = "ASHBORNE"
     environment: Literal["development", "test", "production"] = "development"
     debug: bool = False
-    database_url: str = "sqlite+aiosqlite:///./kandor.db"
+    database_url: str = "sqlite+aiosqlite:///./ashborne.db"
     redis_url: str | None = None
     secret_key: SecretStr = SecretStr("development-only-change-this-secret-key-please")
-    jwt_issuer: str = "kandor"
-    jwt_audience: str = "kandor-ui"
+    jwt_issuer: str = "ashborne"
+    jwt_audience: str = "ashborne-ui"
     session_timeout_minutes: int = Field(default=60, ge=5, le=1_440)
     refresh_token_days: int = Field(default=7, ge=1, le=90)
     # NoDecode lets the before-validator accept the documented comma-separated
@@ -97,15 +97,15 @@ class Settings(BaseSettings):
         if self.environment == "production":
             secret = self.secret_key.get_secret_value()
             configured_secrets = {
-                "KANDOR_SECRET_KEY": secret,
-                "KANDOR_DATABASE_URL": self.database_url,
-                "KANDOR_REDIS_URL": self.redis_url or "",
+                "ASHBORNE_SECRET_KEY": secret,
+                "ASHBORNE_DATABASE_URL": self.database_url,
+                "ASHBORNE_REDIS_URL": self.redis_url or "",
             }
             placeholders = [name for name, value in configured_secrets.items() if "change_me" in value.casefold()]
             if placeholders:
                 raise ValueError(f"production configuration contains CHANGE_ME placeholders: {', '.join(placeholders)}")
             if len(secret) < 32 or secret.lower().startswith(("development-only", "changeme")):
-                raise ValueError("KANDOR_SECRET_KEY must be a unique 32+ character value in production")
+                raise ValueError("ASHBORNE_SECRET_KEY must be a unique 32+ character value in production")
             if self.debug:
                 raise ValueError("debug mode cannot be enabled in production")
             if "*" in self.cors_origins:
@@ -115,7 +115,7 @@ class Settings(BaseSettings):
                 or "*" in self.trusted_hosts
                 or any(not host.strip() for host in self.trusted_hosts)
             ):
-                raise ValueError("KANDOR_TRUSTED_HOSTS must be explicit in production")
+                raise ValueError("ASHBORNE_TRUSTED_HOSTS must be explicit in production")
             if not self.database_url.startswith("postgresql+asyncpg://"):
                 raise ValueError("production requires a PostgreSQL asyncpg database URL")
             development_passwords = (self.admin_password, self.operator_password, self.viewer_password)
@@ -127,7 +127,7 @@ class Settings(BaseSettings):
                 raise ValueError("development seed and demo enrollment must be disabled in production")
             if self.auto_create_tables:
                 raise ValueError(
-                    "KANDOR_AUTO_CREATE_TABLES must be false in production; apply Alembic migrations instead"
+                    "ASHBORNE_AUTO_CREATE_TABLES must be false in production; apply Alembic migrations instead"
                 )
         return self
 

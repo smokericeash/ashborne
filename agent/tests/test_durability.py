@@ -9,9 +9,9 @@ from uuid import uuid4
 
 import pytest
 
-from kandor_agent.logging import JsonFormatter, SecureRotatingFileHandler
-from kandor_agent.models import MAX_RESULT_BYTES, ProtocolError, TaskResult
-from kandor_agent.outbox import OutboxError, ResultOutbox
+from ashborne_agent.logging import JsonFormatter, SecureRotatingFileHandler
+from ashborne_agent.models import MAX_RESULT_BYTES, ProtocolError, TaskResult
+from ashborne_agent.outbox import OutboxError, ResultOutbox
 
 
 def successful_result(*, value: object = True) -> TaskResult:
@@ -92,7 +92,7 @@ def test_outbox_rejects_duplicate_or_protocol_invalid_records(tmp_path: Path) ->
 
 
 def test_json_logs_drop_secret_named_fields() -> None:
-    record = logging.LogRecord("kandor", logging.INFO, "", 0, "safe", (), None)
+    record = logging.LogRecord("ashborne", logging.INFO, "", 0, "safe", (), None)
     record.agent_id = "visible"
     record.agent_credential = "must-not-appear"
     record.enrollment_token = "must-not-appear"
@@ -109,7 +109,7 @@ def test_rotating_log_file_is_owner_only(tmp_path: Path) -> None:
     path = tmp_path / "agent.jsonl"
     handler = SecureRotatingFileHandler(path, maxBytes=100, backupCount=1, encoding="utf-8")
     try:
-        handler.emit(logging.LogRecord("kandor", logging.INFO, "", 0, "event", (), None))
+        handler.emit(logging.LogRecord("ashborne", logging.INFO, "", 0, "event", (), None))
     finally:
         handler.close()
     if os.name != "nt":

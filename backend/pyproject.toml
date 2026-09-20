@@ -3,13 +3,13 @@ requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kandor-server"
+name = "ashborne-server"
 version = "0.1.0"
-description = "KANDOR self-hosted security agent orchestration API"
+description = "ASHBORNE adversary-emulation and offensive-security lab API"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-authors = [{ name = "KANDOR Contributors" }]
+authors = [{ name = "ASHBORNE Contributors" }]
 dependencies = [
   "fastapi>=0.115.8,<1.0",
   "uvicorn[standard]>=0.34.0,<1.0",
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kandor = "app.cli:cli"
+ashborne = "app.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["app*"]

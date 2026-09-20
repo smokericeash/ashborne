@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the running KANDOR stack through its public HTTP contracts."""
+"""Exercise the running ASHBORNE stack through its public HTTP contracts."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -54,16 +53,23 @@ class Client:
         expected: int | set[int] = 200,
     ) -> Response:
         data = json.dumps(body).encode() if body is not None else None
-        headers = {"Accept": "application/json", "X-Request-ID": f"smoke-{uuid.uuid4()}"}
+        headers = {
+            "Accept": "application/json",
+            "X-Request-ID": f"smoke-{uuid.uuid4()}",
+        }
         if data is not None:
             headers["Content-Type"] = "application/json"
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        request = urllib.request.Request(self.base_url + path, data=data, headers=headers, method=method)
+        request = urllib.request.Request(
+            self.base_url + path, data=data, headers=headers, method=method
+        )
         try:
             with urllib.request.urlopen(request, timeout=15) as result:
                 raw = result.read()
-                response = Response(result.status, json.loads(raw) if raw else None, result.headers)
+                response = Response(
+                    result.status, json.loads(raw) if raw else None, result.headers
+                )
         except urllib.error.HTTPError as error:
             raw = error.read()
             try:
@@ -75,8 +81,14 @@ class Client:
         if response.status not in allowed:
             safe_body = response.body
             if isinstance(safe_body, dict):
-                safe_body = {key: value for key, value in safe_body.items() if "token" not in key and "credential" not in key}
-            raise AssertionError(f"{method} {path}: expected {sorted(allowed)}, got {response.status}: {safe_body}")
+                safe_body = {
+                    key: value
+                    for key, value in safe_body.items()
+                    if "token" not in key and "credential" not in key
+                }
+            raise AssertionError(
+                f"{method} {path}: expected {sorted(allowed)}, got {response.status}: {safe_body}"
+            )
         return response
 
 
@@ -87,24 +99,41 @@ def require(condition: bool, message: str) -> None:
 
 def main() -> int:
     dotenv = load_dotenv(ROOT / ".env")
-    parser = argparse.ArgumentParser(description="Validate a running KANDOR stack")
-    parser.add_argument("--url", default=os.getenv("KANDOR_SMOKE_URL", "http://127.0.0.1:8000"))
+    parser = argparse.ArgumentParser(description="Validate a running ASHBORNE stack")
+    parser.add_argument(
+        "--url", default=os.getenv("ASHBORNE_SMOKE_URL", "http://127.0.0.1:8000")
+    )
     parser.add_argument("--admin-email", default="admin@example.local")
-    parser.add_argument("--admin-password", default=os.getenv("KANDOR_ADMIN_PASSWORD") or dotenv.get("KANDOR_ADMIN_PASSWORD"))
+    parser.add_argument(
+        "--admin-password",
+        default=os.getenv("ASHBORNE_ADMIN_PASSWORD")
+        or dotenv.get("ASHBORNE_ADMIN_PASSWORD"),
+    )
     parser.add_argument("--viewer-email", default="viewer@example.local")
-    parser.add_argument("--viewer-password", default=os.getenv("KANDOR_VIEWER_PASSWORD") or dotenv.get("KANDOR_VIEWER_PASSWORD"))
+    parser.add_argument(
+        "--viewer-password",
+        default=os.getenv("ASHBORNE_VIEWER_PASSWORD")
+        or dotenv.get("ASHBORNE_VIEWER_PASSWORD"),
+    )
     args = parser.parse_args()
     if not args.admin_password or not args.viewer_password:
-        parser.error("admin and viewer passwords must be provided by environment or .env")
+        parser.error(
+            "admin and viewer passwords must be provided by environment or .env"
+        )
 
     api = Client(args.url)
     steps: list[str] = []
 
     live = api.request("GET", "/health/live")
     ready = api.request("GET", "/health/ready")
-    require(live.body.get("service") == "kandor-backend", "unexpected liveness identity")
+    require(
+        live.body.get("service") == "ashborne-backend", "unexpected liveness identity"
+    )
     require(ready.body.get("status") == "ready", "database is not ready")
-    require(live.headers.get("X-Content-Type-Options") == "nosniff", "security headers are missing")
+    require(
+        live.headers.get("X-Content-Type-Options") == "nosniff",
+        "security headers are missing",
+    )
     steps.append("health and security headers")
 
     login = api.request(
@@ -114,12 +143,23 @@ def main() -> int:
     ).body
     admin_access = login["access_token"]
     original_refresh = login["refresh_token"]
-    require(login["user"]["role"] == "ADMINISTRATOR", "seed administrator has the wrong role")
-    api.request("POST", "/api/v1/auth/login", body={"email": args.admin_email, "password": "definitely-wrong"}, expected=401)
+    require(
+        login["user"]["role"] == "ADMINISTRATOR",
+        "seed administrator has the wrong role",
+    )
+    api.request(
+        "POST",
+        "/api/v1/auth/login",
+        body={"email": args.admin_email, "password": "definitely-wrong"},
+        expected=401,
+    )
     steps.append("successful and rejected login")
 
     metrics = api.request("GET", "/api/v1/dashboard/metrics", token=admin_access).body
-    require("total_agents" in metrics and "task_success_rate" in metrics, "dashboard metrics are incomplete")
+    require(
+        "total_agents" in metrics and "task_success_rate" in metrics,
+        "dashboard metrics are incomplete",
+    )
     steps.append("dashboard metrics")
 
     issued = api.request(
@@ -134,7 +174,7 @@ def main() -> int:
     identity = {
         "agent_id": agent_id,
         "name": f"smoke-{agent_id[:8]}",
-        "hostname": "kandor-smoke.local",
+        "hostname": "ashborne-smoke.local",
         "username": "smoke-user",
         "operating_system": platform.system() or "Unknown",
         "os_version": platform.release()[:255],
@@ -150,7 +190,12 @@ def main() -> int:
         expected=201,
     ).body
     agent_credential = enrolled["credential"]
-    api.request("POST", "/api/v1/enrollment", body={"token": enrollment_token, **identity}, expected=401)
+    api.request(
+        "POST",
+        "/api/v1/enrollment",
+        body={"token": enrollment_token, **identity},
+        expected=401,
+    )
     steps.append("one-time agent enrollment and replay rejection")
 
     heartbeat = api.request(
@@ -173,7 +218,12 @@ def main() -> int:
         "POST",
         "/api/v1/tasks",
         token=admin_access,
-        body={"agent_id": agent_id, "task_type": "ARBITRARY_COMMAND", "parameters": {"command": "whoami"}},
+        body={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "ARBITRARY_COMMAND",
+            "parameters": {"command": "whoami"},
+        },
         expected=422,
     )
     require(unknown.status == 422, "unknown task type was not rejected")
@@ -182,13 +232,25 @@ def main() -> int:
         "POST",
         "/api/v1/tasks",
         token=admin_access,
-        body={"agent_id": agent_id, "task_type": "PING", "parameters": {"message": "safe-smoke"}},
+        body={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "PING",
+            "parameters": {"message": "safe-smoke"},
+        },
         expected=201,
     ).body
     task_id = created_task["id"]
-    pending = api.request("GET", f"/api/v1/agents/{agent_id}/tasks", token=agent_credential).body
-    require(any(item["id"] == task_id for item in pending["items"]), "agent did not receive its queued task")
-    started = api.request("POST", f"/api/v1/tasks/{task_id}/start", token=agent_credential, body={}).body
+    pending = api.request(
+        "GET", f"/api/v1/agents/{agent_id}/tasks", token=agent_credential
+    ).body
+    require(
+        any(item["id"] == task_id for item in pending["items"]),
+        "agent did not receive its queued task",
+    )
+    started = api.request(
+        "POST", f"/api/v1/tasks/{task_id}/start", token=agent_credential, body={}
+    ).body
     require(started["status"] == "RUNNING", "task did not enter RUNNING")
     completed = api.request(
         "POST",
@@ -196,7 +258,10 @@ def main() -> int:
         token=agent_credential,
         body={
             "status": "SUCCESS",
-            "result": {"task_type": "PING", "data": {"pong": True, "message": "safe-smoke"}},
+            "result": {
+                "task_type": "PING",
+                "data": {"pong": True, "message": "safe-smoke"},
+            },
         },
     ).body
     require(completed["status"] == "SUCCESS", "task result did not reach SUCCESS")
@@ -213,7 +278,12 @@ def main() -> int:
         "POST",
         "/api/v1/tasks",
         token=viewer_access,
-        body={"agent_id": agent_id, "task_type": "PING", "parameters": {}},
+        body={
+            "authorized_scope_confirmed": True,
+            "agent_id": agent_id,
+            "task_type": "PING",
+            "parameters": {},
+        },
         expected=403,
     )
     api.request("GET", "/api/v1/audit?event_type=TASK_COMPLETED", token=viewer_access)
@@ -224,7 +294,10 @@ def main() -> int:
         f"/api/v1/audit?agent_id={agent_id}&event_type=TASK_COMPLETED",
         token=admin_access,
     ).body
-    require(any(event["metadata"].get("task_id") == task_id for event in audit["items"]), "task audit event is missing")
+    require(
+        any(event["metadata"].get("task_id") == task_id for event in audit["items"]),
+        "task audit event is missing",
+    )
     steps.append("audit trail")
 
     rotated = api.request(
@@ -232,15 +305,29 @@ def main() -> int:
         "/api/v1/auth/refresh",
         body={"refresh_token": original_refresh},
     ).body
-    require(rotated.get("refresh_token") != original_refresh, "refresh token did not rotate")
-    api.request("POST", "/api/v1/auth/refresh", body={"refresh_token": original_refresh}, expected=401)
+    require(
+        rotated.get("refresh_token") != original_refresh, "refresh token did not rotate"
+    )
+    api.request(
+        "POST",
+        "/api/v1/auth/refresh",
+        body={"refresh_token": original_refresh},
+        expected=401,
+    )
     steps.append("refresh rotation and reuse detection")
 
-    api.request("DELETE", f"/api/v1/agents/{agent_id}", token=admin_access, expected=204)
-    api.request("POST", "/api/v1/auth/logout", body={"refresh_token": rotated["refresh_token"]}, expected=204)
+    api.request(
+        "DELETE", f"/api/v1/agents/{agent_id}", token=admin_access, expected=204
+    )
+    api.request(
+        "POST",
+        "/api/v1/auth/logout",
+        body={"refresh_token": rotated["refresh_token"]},
+        expected=204,
+    )
     steps.append("agent credential revocation and logout")
 
-    print(f"KANDOR smoke validation passed ({len(steps)} checks):")
+    print(f"ASHBORNE smoke validation passed ({len(steps)} checks):")
     for step in steps:
         print(f"  - {step}")
     return 0
@@ -250,5 +337,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (AssertionError, OSError) as error:
-        print(f"KANDOR smoke validation failed: {error}", file=sys.stderr)
+        print(f"ASHBORNE smoke validation failed: {error}", file=sys.stderr)
         raise SystemExit(1) from error

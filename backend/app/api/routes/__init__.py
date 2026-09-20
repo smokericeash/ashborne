@@ -1,1 +1,1 @@
-"""KANDOR v1 route modules."""
+"""ASHBORNE v1 route modules."""

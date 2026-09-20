@@ -19,11 +19,11 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: kandor_test
-          POSTGRES_PASSWORD: kandor_test_password
-          POSTGRES_DB: kandor_test
+          POSTGRES_USER: ashborne_test
+          POSTGRES_PASSWORD: ashborne_test_password
+          POSTGRES_DB: ashborne_test
         options: >-
-          --health-cmd "pg_isready -U kandor_test -d kandor_test"
+          --health-cmd "pg_isready -U ashborne_test -d ashborne_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -39,10 +39,10 @@ jobs:
         ports:
           - 6379:6379
     env:
-      KANDOR_ENVIRONMENT: test
-      KANDOR_DATABASE_URL: postgresql+asyncpg://kandor_test:kandor_test_password@127.0.0.1:5432/kandor_test
-      KANDOR_REDIS_URL: redis://127.0.0.1:6379/15
-      KANDOR_SECRET_KEY: ci_only_signing_key_at_least_64_characters_long_00000000000000000
+      ASHBORNE_ENVIRONMENT: test
+      ASHBORNE_DATABASE_URL: postgresql+asyncpg://ashborne_test:ashborne_test_password@127.0.0.1:5432/ashborne_test
+      ASHBORNE_REDIS_URL: redis://127.0.0.1:6379/15
+      ASHBORNE_SECRET_KEY: ci_only_signing_key_at_least_64_characters_long_00000000000000000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -79,10 +79,10 @@ jobs:
       - name: Install agent
         run: python -m pip install --upgrade pip && python -m pip install -e "./agent[dev]"
       - name: Lint
-        run: python -m ruff check agent/kandor_agent agent/tests
+        run: python -m ruff check agent/ashborne_agent agent/tests
       - name: Type check
-        run: python -m mypy agent/kandor_agent
+        run: python -m mypy agent/ashborne_agent
       - name: Test
-        run: python -m pytest agent/tests --cov=agent/kandor_agent --cov-report=term-missing
+        run: python -m pytest agent/tests --cov=agent/ashborne_agent --cov-report=term-missing
       - name: Compile
-        run: python -m compileall -q agent/kandor_agent
+        run: python -m compileall -q agent/ashborne_agent

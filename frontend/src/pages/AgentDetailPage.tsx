@@ -38,7 +38,7 @@ import {
   humanize,
 } from "../lib/utils";
 import { api, inventoryFromTasks } from "../services/api";
-import type { AgentInventory, KandorTask } from "../types";
+import type { AgentInventory, AshborneTask } from "../types";
 
 type Tab = "overview" | "inventory" | "tasks";
 
@@ -55,7 +55,7 @@ function ProgressBar({
       ? "bg-red-400"
       : tone === "amber"
         ? "bg-amber-400"
-        : "bg-kandor-400";
+        : "bg-ashborne-400";
   return (
     <div className="h-1.5 overflow-hidden rounded-full bg-white/[.04]">
       <div
@@ -76,7 +76,7 @@ function OverviewPanel({
     <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
       <Card className="overflow-hidden">
         <SectionTitle
-          title="Endpoint identity"
+          title="Lab-host identity"
           description="Agent-reported host attributes"
         />
         <dl className="grid grid-cols-1 gap-x-6 px-5 sm:grid-cols-2">
@@ -150,7 +150,7 @@ function OverviewPanel({
                         ? "bg-red-400"
                         : heartbeat.status === "DEGRADED"
                           ? "bg-amber-400"
-                          : "bg-kandor-400";
+                          : "bg-ashborne-400";
                     return (
                       <div
                         key={heartbeat.id ?? `${heartbeat.timestamp}-${index}`}
@@ -173,7 +173,7 @@ function OverviewPanel({
       <Card className="overflow-hidden xl:col-span-2">
         <SectionTitle
           title="Classification"
-          description="Operator-assigned labels for fleet organization"
+          description="Operator-assigned labels for lab organization"
         />
         <div className="flex min-h-20 flex-wrap items-center gap-2 p-5">
           {agent.tags?.length ? (
@@ -197,7 +197,7 @@ function InventoryPanel({ inventory }: { inventory?: AgentInventory | null }) {
       <Card>
         <EmptyState
           title="No inventory snapshot"
-          description="Issue a System Info or inventory diagnostic to collect structured host observations."
+          description="Issue Quick Recon or a typed enumeration action to collect structured host observations."
           icon={<Box className="h-5 w-5" />}
         />
       </Card>
@@ -222,7 +222,7 @@ function InventoryPanel({ inventory }: { inventory?: AgentInventory | null }) {
                 <span className="text-sm text-slate-600">%</span>
               </p>
             </div>
-            <Cpu className="h-5 w-5 text-kandor-400" />
+            <Cpu className="h-5 w-5 text-ashborne-400" />
           </div>
           <div className="mt-4">
             <ProgressBar value={inventory.cpu?.usage_percent} />
@@ -432,18 +432,18 @@ function TasksPanel({
   onCreated,
   onInspect,
 }: {
-  tasks: KandorTask[];
+  tasks: AshborneTask[];
   agentId: string;
   agentName: string;
-  onCreated: (task: KandorTask) => void;
-  onInspect: (task: KandorTask) => void;
+  onCreated: (task: AshborneTask) => void;
+  onInspect: (task: AshborneTask) => void;
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
       <Card className="min-w-0 overflow-hidden">
         <SectionTitle
           title="Task history"
-          description="Diagnostic work issued to this endpoint"
+          description="Authorized typed actions issued to this lab host"
         />
         {tasks.length ? (
           <div className="overflow-x-auto">
@@ -496,13 +496,13 @@ function TasksPanel({
         ) : (
           <EmptyState
             title="No task history"
-            description="Queue an approved diagnostic to start a structured task history."
+            description="Queue an approved lab action to start a structured task history."
           />
         )}
       </Card>
       <Card className="h-fit overflow-hidden">
         <SectionTitle
-          title="Issue diagnostic"
+          title="Issue lab action"
           description={`Target: ${agentName}`}
         />
         <div className="p-5">
@@ -547,19 +547,19 @@ export function AgentDetailPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [inspectedTask, setInspectedTask] = useState<KandorTask | null>(null);
+  const [inspectedTask, setInspectedTask] = useState<AshborneTask | null>(null);
 
   if (resource.loading)
     return (
       <>
-        <PageHeader title="Agent intelligence" />
-        <Spinner label="Resolving endpoint identity" />
+        <PageHeader title="Lab-host intelligence" />
+        <Spinner label="Resolving lab-host identity" />
       </>
     );
   if (resource.error || !resource.data)
     return (
       <>
-        <PageHeader title="Agent intelligence" />
+        <PageHeader title="Lab-host intelligence" />
         <Card>
           <ErrorState
             error={resource.error ?? "Agent not found"}
@@ -574,7 +574,7 @@ export function AgentDetailPage() {
     setDeleting(true);
     try {
       await api.agents.remove(agent.id);
-      notify(`${agent.name || agent.hostname} removed from KANDOR.`);
+      notify(`${agent.name || agent.hostname} removed from ASHBORNE.`);
       navigate("/agents", { replace: true });
     } catch (caught) {
       notify(
@@ -587,7 +587,7 @@ export function AgentDetailPage() {
     }
   };
 
-  const addTask = (task: KandorTask) => {
+  const addTask = (task: AshborneTask) => {
     resource.data?.tasks.unshift(task);
     void resource.reload();
   };
@@ -596,12 +596,12 @@ export function AgentDetailPage() {
     <div className="animate-slide-in">
       <Link
         to="/agents"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-kandor-300"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-ashborne-300"
       >
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to agents
+        <ArrowLeft className="h-3.5 w-3.5" /> Back to lab hosts
       </Link>
       <PageHeader
-        eyebrow="Endpoint intelligence"
+        eyebrow="In-scope host intelligence"
         title={agent.name || agent.hostname}
         description={`${agent.hostname} · ${agent.operating_system} ${agent.os_version ?? ""}`}
         actions={
@@ -624,7 +624,7 @@ export function AgentDetailPage() {
         {(["overview", "inventory", "tasks"] as Tab[]).map((item) => (
           <button
             key={item}
-            className={`min-w-28 rounded-md px-4 py-2 text-xs font-semibold capitalize transition ${tab === item ? "bg-kandor-400/10 text-kandor-200" : "text-slate-500 hover:text-slate-200"}`}
+            className={`min-w-28 rounded-md px-4 py-2 text-xs font-semibold capitalize transition ${tab === item ? "bg-ashborne-400/10 text-ashborne-200" : "text-slate-500 hover:text-slate-200"}`}
             onClick={() => setTab(item)}
           >
             {item}
@@ -647,7 +647,7 @@ export function AgentDetailPage() {
       <Modal
         open={confirmDelete}
         title="Remove agent?"
-        description="This revokes the endpoint credential and removes it from the active fleet."
+        description="This revokes the host credential and removes it from the active lab."
         onClose={() => setConfirmDelete(false)}
       >
         <div className="p-5">

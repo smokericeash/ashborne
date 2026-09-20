@@ -6,7 +6,16 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from email_validator import EmailNotValidError, validate_email
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    SecretStr,
+    StrictBool,
+    field_validator,
+    model_validator,
+)
 
 from app.models import AgentStatus, RoleName, TaskStatus, TaskType
 
@@ -15,7 +24,7 @@ def normalize_email_address(value: Any) -> str:
     """Validate an account address while supporting the documented lab-only .local domain.
 
     ``email-validator`` intentionally rejects special-use domains such as ``.local``.
-    KANDOR's required demo identities use ``example.local``, so local domains are
+    ASHBORNE's required demo identities use ``example.local``, so local domains are
     syntax-checked against an equivalent reserved ``.example`` name and then kept
     unchanged. Public addresses still receive the library's full syntax validation.
     Deliverability checks are never appropriate for a self-hosted login identifier.
@@ -313,12 +322,20 @@ class TaskCreate(APIModel):
     agent_id: str
     task_type: TaskType
     parameters: dict[str, Any] = Field(default_factory=dict)
+    authorized_scope_confirmed: StrictBool
     expires_in_seconds: int | None = Field(default=None, ge=60, le=604_800)
 
     @field_validator("agent_id")
     @classmethod
     def valid_uuid(cls, value: str) -> str:
         return AgentIdentity.valid_uuid(value)
+
+    @field_validator("authorized_scope_confirmed")
+    @classmethod
+    def scope_must_be_confirmed(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("authorized lab scope must be explicitly confirmed")
+        return value
 
 
 class TaskResultSubmission(APIModel):

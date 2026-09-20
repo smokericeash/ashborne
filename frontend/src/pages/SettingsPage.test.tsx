@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { api } from "../services/api";
 import { renderWithContexts } from "../test/render";
-import type { KandorSettings } from "../types";
+import type { AshborneSettings } from "../types";
 import { SettingsPage } from "./SettingsPage";
 
-const backendSettings: KandorSettings = {
+const backendSettings: AshborneSettings = {
   heartbeat_interval_seconds: 30,
   degraded_threshold_seconds: 60,
   offline_threshold_seconds: 300,

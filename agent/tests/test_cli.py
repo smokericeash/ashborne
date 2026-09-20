@@ -7,8 +7,8 @@ from typing import Any, ClassVar
 
 import pytest
 
-from kandor_agent import main as cli
-from kandor_agent.config import AgentConfig
+from ashborne_agent import main as cli
+from ashborne_agent.config import AgentConfig
 
 
 class EnrollmentClient:
@@ -32,7 +32,7 @@ def test_cli_enrollment_persists_uuid_and_credential(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     EnrollmentClient.calls.clear()
-    monkeypatch.setattr(cli, "KandorClient", EnrollmentClient)
+    monkeypatch.setattr(cli, "AshborneClient", EnrollmentClient)
     path = tmp_path / "agent.json"
 
     status = cli.main(
@@ -41,7 +41,7 @@ def test_cli_enrollment_persists_uuid_and_credential(
             "--config",
             str(path),
             "--server",
-            "https://kandor.example",
+            "https://ashborne.example",
             "--token",
             "one-time-token",
             "--name",
@@ -59,9 +59,9 @@ def test_cli_enrollment_persists_uuid_and_credential(
 def test_cli_refuses_to_overwrite_enrollment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(cli, "KandorClient", EnrollmentClient)
+    monkeypatch.setattr(cli, "AshborneClient", EnrollmentClient)
     path = tmp_path / "agent.json"
-    AgentConfig.new("https://kandor.example", name="node").save(path)
+    AgentConfig.new("https://ashborne.example", name="node").save(path)
     config = AgentConfig.load(path)
     config.credential = "existing-credential-value"
     config.save(path)
@@ -76,7 +76,7 @@ def test_status_output_never_contains_credential(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     path = tmp_path / "agent.json"
-    config = AgentConfig.new("https://kandor.example", name="node")
+    config = AgentConfig.new("https://ashborne.example", name="node")
     config.credential = "highly-secret-agent-credential"
     config.save(path)
 
@@ -90,14 +90,14 @@ def test_status_output_never_contains_credential(
 
 def test_status_returns_nonzero_when_not_enrolled(tmp_path: Path) -> None:
     path = tmp_path / "agent.json"
-    AgentConfig.new("https://kandor.example", name="node").save(path)
+    AgentConfig.new("https://ashborne.example", name="node").save(path)
     assert cli.main(["status", "--config", str(path), "--json"]) == 1
 
 
 def test_run_config_can_be_created_for_explicit_local_lab(tmp_path: Path) -> None:
     arguments = Namespace(
         config=str(tmp_path / "agent.json"),
-        server="http://kandor-backend:8000",
+        server="http://ashborne-backend:8000",
         name="demo",
         ca_bundle=None,
         allow_insecure_http=True,

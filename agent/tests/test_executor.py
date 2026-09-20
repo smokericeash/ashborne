@@ -5,8 +5,8 @@ from dataclasses import replace
 
 import pytest
 
-from kandor_agent import executor
-from kandor_agent.executor import (
+from ashborne_agent import executor
+from ashborne_agent.executor import (
     ALLOWED_TASK_TYPES,
     TASK_HANDLERS,
     TaskExecutionError,
@@ -16,13 +16,18 @@ from kandor_agent.executor import (
 )
 
 EXPECTED_ALLOWLIST = {
+    "QUICK_RECON",
     "SYSTEM_INFO",
     "HOSTNAME",
     "CURRENT_USER",
+    "SECURITY_CONTEXT",
     "CPU_INFO",
     "MEMORY_USAGE",
     "DISK_USAGE",
+    "FILE_SYSTEM_OVERVIEW",
     "NETWORK_INTERFACES",
+    "NETWORK_CONNECTIONS",
+    "ROUTE_TABLE",
     "UPTIME",
     "PROCESS_INVENTORY",
     "INSTALLED_SOFTWARE",
@@ -49,6 +54,7 @@ def test_unknown_or_non_string_task_is_rejected(task_type: object) -> None:
         ("HOSTNAME", {"command": "whoami"}),
         ("PROCESS_INVENTORY", {"limit": True}),
         ("PROCESS_INVENTORY", {"limit": 501}),
+        ("NETWORK_CONNECTIONS", {"limit": 501}),
         ("DISK_USAGE", {"all_partitions": "yes"}),
         ("PING", {"message": "x" * 257}),
         ("PING", []),
@@ -61,6 +67,7 @@ def test_invalid_parameters_are_rejected(task_type: str, parameters: object) -> 
 
 def test_parameters_are_normalized() -> None:
     assert validate_task("PROCESS_INVENTORY", {}) == {"limit": 200}
+    assert validate_task("NETWORK_CONNECTIONS", {}) == {"limit": 200}
     assert validate_task("DISK_USAGE", {}) == {"all_partitions": False}
     assert validate_task("PING", {}) == {"message": None}
 
@@ -68,13 +75,18 @@ def test_parameters_are_normalized() -> None:
 @pytest.mark.parametrize(
     ("task_type", "parameters"),
     [
+        ("QUICK_RECON", {}),
         ("SYSTEM_INFO", {}),
         ("HOSTNAME", {}),
         ("CURRENT_USER", {}),
+        ("SECURITY_CONTEXT", {}),
         ("CPU_INFO", {}),
         ("MEMORY_USAGE", {}),
         ("DISK_USAGE", {}),
+        ("FILE_SYSTEM_OVERVIEW", {}),
         ("NETWORK_INTERFACES", {}),
+        ("NETWORK_CONNECTIONS", {"limit": 2}),
+        ("ROUTE_TABLE", {}),
         ("UPTIME", {}),
         ("PROCESS_INVENTORY", {"limit": 2}),
         ("INSTALLED_SOFTWARE", {"limit": 2}),
@@ -90,6 +102,13 @@ def test_every_allowlisted_handler_returns_structured_data(
     assert result["task_type"] == task_type
     assert isinstance(result["collected_at"], str)
     assert isinstance(result["data"], dict)
+
+
+def test_quick_recon_is_local_and_passive() -> None:
+    data = execute_task("QUICK_RECON", {})["data"]
+    assert data["scope"] == "local_host_only"
+    assert data["active_network_probing"] is False
+    assert data["file_system"]["contents_collected"] is False
 
 
 def test_handler_failures_are_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -120,7 +139,7 @@ def test_oversized_handler_result_is_rejected(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_execution_modules_have_no_shell_or_subprocess_surface() -> None:
-    import kandor_agent.inventory as inventory
+    import ashborne_agent.inventory as inventory
 
     source = inspect.getsource(inventory) + inspect.getsource(executor)
     assert "shell=True" not in source

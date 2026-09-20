@@ -8,28 +8,28 @@ from uuid import uuid4
 
 import pytest
 
-from kandor_agent.config import AgentConfig, ConfigError, validate_server_url
+from ashborne_agent.config import AgentConfig, ConfigError, validate_server_url
 
 
 def test_https_is_required_by_default() -> None:
     with pytest.raises(ConfigError, match="plain HTTP is disabled"):
-        validate_server_url("http://kandor.local")
+        validate_server_url("http://ashborne.local")
     assert (
-        validate_server_url("http://kandor.local/", allow_insecure_http=True)
-        == "http://kandor.local"
+        validate_server_url("http://ashborne.local/", allow_insecure_http=True)
+        == "http://ashborne.local"
     )
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "kandor.local",
-        "ftp://kandor.local",
-        "https://user:secret@kandor.local",
-        "https://kandor.local/api",
-        "https://kandor.local?secret=x",
-        "https://kandor.local:70000",
-        "https://kandor.local\n.invalid",
+        "ashborne.local",
+        "ftp://ashborne.local",
+        "https://user:secret@ashborne.local",
+        "https://ashborne.local/api",
+        "https://ashborne.local?secret=x",
+        "https://ashborne.local:70000",
+        "https://ashborne.local\n.invalid",
     ],
 )
 def test_rejects_unsafe_or_ambiguous_server_urls(url: str) -> None:
@@ -40,7 +40,7 @@ def test_rejects_unsafe_or_ambiguous_server_urls(url: str) -> None:
 def test_config_round_trip_is_atomic_and_credential_is_not_public(tmp_path: Path) -> None:
     path = tmp_path / "state" / "agent.json"
     config = AgentConfig(
-        "https://kandor.example",
+        "https://ashborne.example",
         str(uuid4()),
         credential="secret-agent-credential-value",
         name="node-1",
@@ -62,7 +62,7 @@ def test_config_rejects_unknown_fields(tmp_path: Path) -> None:
     path.write_text(
         json.dumps(
             {
-                "server_url": "https://kandor.example",
+                "server_url": "https://ashborne.example",
                 "agent_id": str(uuid4()),
                 "unexpected": "value",
             }
@@ -88,7 +88,7 @@ def test_config_rejects_unknown_fields(tmp_path: Path) -> None:
 )
 def test_config_bounds(field: str, value: object) -> None:
     arguments: dict[str, object] = {
-        "server_url": "https://kandor.example",
+        "server_url": "https://ashborne.example",
         "agent_id": str(uuid4()),
         "credential": "x" * 32,
         "name": "valid",

@@ -7,16 +7,20 @@ import ast
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = {
+    "QUICK_RECON",
     "SYSTEM_INFO",
     "HOSTNAME",
     "CURRENT_USER",
+    "SECURITY_CONTEXT",
     "CPU_INFO",
     "MEMORY_USAGE",
     "DISK_USAGE",
+    "FILE_SYSTEM_OVERVIEW",
     "NETWORK_INTERFACES",
+    "NETWORK_CONNECTIONS",
+    "ROUTE_TABLE",
     "UPTIME",
     "PROCESS_INVENTORY",
     "INSTALLED_SOFTWARE",
@@ -27,7 +31,9 @@ EXPECTED = {
 
 
 def backend_values() -> set[str]:
-    tree = ast.parse((ROOT / "backend/app/models/entities.py").read_text(encoding="utf-8"))
+    tree = ast.parse(
+        (ROOT / "backend/app/models/entities.py").read_text(encoding="utf-8")
+    )
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == "TaskType":
             return {
@@ -41,7 +47,9 @@ def backend_values() -> set[str]:
 
 
 def agent_values() -> set[str]:
-    tree = ast.parse((ROOT / "agent/kandor_agent/executor.py").read_text(encoding="utf-8"))
+    tree = ast.parse(
+        (ROOT / "agent/ashborne_agent/executor.py").read_text(encoding="utf-8")
+    )
     for node in tree.body:
         if not isinstance(node, ast.AnnAssign) or not isinstance(node.target, ast.Name):
             continue
@@ -56,7 +64,9 @@ def agent_values() -> set[str]:
 
 def frontend_values() -> set[str]:
     source = (ROOT / "frontend/src/types/index.ts").read_text(encoding="utf-8")
-    match = re.search(r"export\s+const\s+TASK_TYPES\s*=\s*\[(.*?)\]\s*as\s+const", source, re.DOTALL)
+    match = re.search(
+        r"export\s+const\s+TASK_TYPES\s*=\s*\[(.*?)\]\s*as\s+const", source, re.DOTALL
+    )
     if not match:
         raise RuntimeError("frontend TASK_TYPES tuple was not found")
     return set(re.findall(r'["\']([A-Z][A-Z0-9_]*)["\']', match.group(1)))
@@ -70,7 +80,7 @@ def main() -> int:
         "frontend": frontend_values(),
     }
     if all(values == EXPECTED for values in sources.values()):
-        print(f"KANDOR allowlist synchronized: {len(EXPECTED)} diagnostic task types")
+        print(f"ASHBORNE allowlist synchronized: {len(EXPECTED)} typed lab actions")
         return 0
     for name, values in sources.items():
         missing = sorted(EXPECTED - values)
@@ -82,4 +92,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

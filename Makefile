@@ -6,7 +6,7 @@ NPM ?= npm
 COMPOSE ?= docker compose
 
 help:
-	@echo "KANDOR developer commands"
+	@echo "ASHBORNE developer commands"
 	@echo "  make install    Install all development dependencies"
 	@echo "  make backend    Run the FastAPI development server"
 	@echo "  make frontend   Run the Vite development server"
@@ -18,7 +18,7 @@ help:
 	@echo "  make up/down    Start or stop core containers"
 	@echo "  make demo       Start core services and demo agents"
 	@echo "  make smoke      Run the API smoke validation"
-	@echo "  make reset-db CONFIRM=reset-kandor  Delete local Compose volumes"
+	@echo "  make reset-db CONFIRM=reset-ashborne  Delete local Compose volumes"
 
 install:
 	$(PYTHON) -m pip install -e ./backend -r backend/requirements.txt
@@ -40,20 +40,21 @@ test:
 
 lint:
 	$(PYTHON) scripts/check_allowlist_sync.py
+	$(PYTHON) scripts/check_compose_isolation.py
 	cd backend && $(PYTHON) -m ruff check app tests
 	cd backend && $(PYTHON) -m mypy app
-	cd agent && $(PYTHON) -m ruff check kandor_agent tests
-	cd agent && $(PYTHON) -m mypy kandor_agent
+	cd agent && $(PYTHON) -m ruff check ashborne_agent tests
+	cd agent && $(PYTHON) -m mypy ashborne_agent
 	cd frontend && $(NPM) run lint
 	cd frontend && $(NPM) run typecheck
 
 format:
 	cd backend && $(PYTHON) -m ruff format app tests
-	cd agent && $(PYTHON) -m ruff format kandor_agent tests
+	cd agent && $(PYTHON) -m ruff format ashborne_agent tests
 	cd frontend && $(NPM) run format
 
 build:
-	$(PYTHON) -m compileall -q backend/app agent/kandor_agent
+	$(PYTHON) -m compileall -q backend/app agent/ashborne_agent
 	cd frontend && $(NPM) run build
 	$(COMPOSE) config --quiet
 
@@ -67,14 +68,14 @@ logs:
 	$(COMPOSE) logs --follow --tail=200
 
 seed:
-	$(COMPOSE) exec kandor-backend kandor seed
+	$(COMPOSE) exec ashborne-backend ashborne seed
 
 demo:
-	$(COMPOSE) --profile demo up --build --scale kandor-agent=5
+	$(COMPOSE) --profile demo up --build --scale ashborne-agent=5
 
 smoke:
 	$(PYTHON) scripts/smoke_test.py
 
 reset-db:
-	@if [ "$(CONFIRM)" != "reset-kandor" ]; then echo "Refusing: run make reset-db CONFIRM=reset-kandor"; exit 2; fi
+	@if [ "$(CONFIRM)" != "reset-ashborne" ]; then echo "Refusing: run make reset-db CONFIRM=reset-ashborne"; exit 2; fi
 	$(COMPOSE) down --volumes --remove-orphans

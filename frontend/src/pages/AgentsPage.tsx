@@ -116,9 +116,9 @@ export function AgentsPage() {
   return (
     <div className="animate-slide-in">
       <PageHeader
-        eyebrow="Fleet intelligence"
-        title="Agents"
-        description="Search, assess, and inspect every enrolled KANDOR endpoint."
+        eyebrow="Authorized target scope"
+        title="Lab hosts"
+        description="Search and inspect enrolled hosts that are explicitly in scope for this lab."
         actions={
           <div className="rounded-lg border border-line bg-panel px-3 py-2 text-xs text-slate-500">
             <span className="font-semibold text-slate-200">
@@ -134,7 +134,7 @@ export function AgentsPage() {
           <form className="relative flex-1 lg:max-w-md" onSubmit={submitSearch}>
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-600" />
             <Input
-              aria-label="Search agents"
+              aria-label="Search lab hosts"
               className="pl-9 pr-9"
               placeholder="Search name, hostname, UUID, or IP…"
               value={draftSearch}
@@ -194,7 +194,7 @@ export function AgentsPage() {
         </div>
 
         {resource.loading ? (
-          <Spinner label="Locating agents" />
+          <Spinner label="Locating lab hosts" />
         ) : resource.error && !resource.data ? (
           <ErrorState
             error={resource.error}
@@ -205,13 +205,13 @@ export function AgentsPage() {
             <div className="overflow-x-auto">
               <table
                 className="w-full border-collapse"
-                aria-label="KANDOR agents"
+                aria-label="ASHBORNE lab hosts"
               >
                 <thead className="border-b border-line/70 bg-void/25">
                   <tr>
                     <th className="table-heading">
                       <SortButton
-                        label="Agent"
+                        label="Enrollment"
                         column="name"
                         active={sortKey}
                         direction={sortDirection}
@@ -278,11 +278,11 @@ export function AgentsPage() {
                           to={`/agents/${agent.id}`}
                           className="flex items-center gap-3"
                         >
-                          <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-void text-slate-500 transition group-hover:border-kandor-400/25 group-hover:text-kandor-400">
+                          <span className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-void text-slate-500 transition group-hover:border-ashborne-400/25 group-hover:text-ashborne-400">
                             <ShieldCheck className="h-4 w-4" />
                           </span>
                           <span>
-                            <span className="block font-medium text-slate-100 group-hover:text-kandor-200">
+                            <span className="block font-medium text-slate-100 group-hover:text-ashborne-200">
                               {agent.name || agent.hostname}
                             </span>
                             <span className="mt-0.5 block max-w-40 truncate font-mono text-[10px] text-slate-700">
@@ -350,11 +350,11 @@ export function AgentsPage() {
           </>
         ) : (
           <EmptyState
-            title="No agents match"
+            title="No lab hosts match"
             description={
               filtersActive
                 ? "Adjust or clear the active search filters."
-                : "Enroll a KANDOR agent to begin collecting defensive telemetry."
+                : "Enroll an ASHBORNE agent on an authorized lab host to begin adversary-emulation training."
             }
             icon={<ShieldCheck className="h-5 w-5" />}
           />

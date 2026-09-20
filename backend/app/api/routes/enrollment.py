@@ -229,7 +229,7 @@ async def enroll(
 async def demo_enroll(
     payload: DemoAgentEnrollRequest,
     request: Request,
-    x_kandor_demo_secret: str | None = Header(default=None),
+    x_ashborne_demo_secret: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> AgentEnrollmentResponse:
     config = get_settings()
@@ -237,7 +237,7 @@ async def demo_enroll(
     # Test mode exercises the same isolated lab flow; production never exposes it.
     if config.environment not in {"development", "test"} or not configured:
         raise HTTPException(status_code=404, detail="not found")
-    if not x_kandor_demo_secret or not hmac.compare_digest(x_kandor_demo_secret, configured):
+    if not x_ashborne_demo_secret or not hmac.compare_digest(x_ashborne_demo_secret, configured):
         await record_audit(db, "DEMO_ENROLLMENT_FAILURE", request=request, metadata={"reason": "invalid_secret"})
         await db.commit()
         raise HTTPException(status_code=401, detail="invalid demo bootstrap credential")

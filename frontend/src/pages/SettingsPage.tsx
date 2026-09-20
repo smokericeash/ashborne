@@ -26,9 +26,9 @@ import { useToast } from "../context/useToast";
 import { useResource } from "../hooks/useResource";
 import { formatDate, formatRelativeTime } from "../lib/utils";
 import { api } from "../services/api";
-import type { EnrollmentToken, KandorSettings } from "../types";
+import type { EnrollmentToken, AshborneSettings } from "../types";
 
-const defaultSettings: KandorSettings = {
+const defaultSettings: AshborneSettings = {
   heartbeat_interval_seconds: 30,
   degraded_threshold_seconds: 60,
   offline_threshold_seconds: 300,
@@ -39,7 +39,7 @@ const defaultSettings: KandorSettings = {
 };
 
 interface SettingField {
-  key: keyof KandorSettings;
+  key: keyof AshborneSettings;
   label: string;
   description: string;
   suffix: string;
@@ -75,7 +75,7 @@ const fields: SettingField[] = [
   {
     key: "task_expiration_seconds",
     label: "Task expiration",
-    description: "Expire queued diagnostics that are not dispatched.",
+    description: "Expire queued lab actions that are not dispatched.",
     suffix: "seconds",
     min: 60,
     max: 604800,
@@ -110,7 +110,7 @@ export function SettingsPage() {
   const { notify } = useToast();
   const settingsResource = useResource(() => api.settings.get(), []);
   const tokenResource = useResource(() => api.enrollment.list(), []);
-  const [settings, setSettings] = useState<KandorSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AshborneSettings>(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [settingsError, setSettingsError] = useState("");
   const [tokenDialog, setTokenDialog] = useState(false);
@@ -141,7 +141,7 @@ export function SettingsPage() {
     try {
       const updated = await api.settings.update(settings);
       setSettings(updated);
-      notify("KANDOR configuration saved.");
+      notify("ASHBORNE configuration saved.");
     } catch (caught) {
       setSettingsError(
         caught instanceof Error
@@ -208,7 +208,7 @@ export function SettingsPage() {
       <PageHeader
         eyebrow="System control"
         title="Settings"
-        description="Configure fleet health, session, retention, and enrollment policy."
+        description="Configure lab-host health, session, retention, and enrollment policy."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_430px]">
         <Card className="overflow-hidden">
@@ -369,9 +369,9 @@ export function SettingsPage() {
             )}
           </Card>
 
-          <Card className="border-kandor-400/15 bg-kandor-400/[.025] p-5">
+          <Card className="border-ashborne-400/15 bg-ashborne-400/[.025] p-5">
             <div className="flex gap-3">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-kandor-400" />
+              <ShieldCheck className="h-5 w-5 shrink-0 text-ashborne-400" />
               <div>
                 <h3 className="text-sm font-semibold text-slate-200">
                   Secure-by-default policy
@@ -449,8 +449,8 @@ export function SettingsPage() {
               This secret is displayed once. Copy it now and close this dialog
               only after it is stored securely.
             </p>
-            <div className="mt-4 flex items-center gap-2 rounded-lg border border-kandor-400/20 bg-void p-3">
-              <code className="min-w-0 flex-1 break-all font-mono text-xs text-kandor-200">
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-ashborne-400/20 bg-void p-3">
+              <code className="min-w-0 flex-1 break-all font-mono text-xs text-ashborne-200">
                 {createdToken.token || "Token was not returned by the server."}
               </code>
               <Button
@@ -463,7 +463,7 @@ export function SettingsPage() {
               </Button>
             </div>
             <p className="mt-4 rounded-lg border border-line bg-void/40 p-3 font-mono text-[10px] leading-5 text-slate-500">
-              kandor-agent enroll --server https://kandor.local --token
+              ashborne-agent enroll --server https://ashborne.local --token
               &lt;TOKEN&gt;
             </p>
             <div className="mt-5 flex justify-end">

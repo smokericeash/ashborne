@@ -89,7 +89,11 @@ async def create_task(
         request=request,
         user_id=actor.id,
         agent_id=agent.id,
-        metadata={"task_id": task.id, "task_type": task.task_type.value},
+        metadata={
+            "task_id": task.id,
+            "task_type": task.task_type.value,
+            "authorized_scope_confirmed": payload.authorized_scope_confirmed,
+        },
     )
     await db.commit()
     task = await _load_task(db, task.id)

@@ -8,19 +8,19 @@ import pytest_asyncio
 
 os.environ.update(
     {
-        "KANDOR_ENVIRONMENT": "test",
-        "KANDOR_DATABASE_URL": "sqlite+aiosqlite:///./kandor-test.db",
-        "KANDOR_SECRET_KEY": "test-only-secret-that-is-long-enough-1234567890",
-        "KANDOR_REDIS_URL": "",
-        "KANDOR_AUTO_CREATE_TABLES": "true",
-        "KANDOR_SEED_DEVELOPMENT": "true",
-        "KANDOR_ADMIN_PASSWORD": "AdminPassword123!",
-        "KANDOR_OPERATOR_PASSWORD": "OperatorPassword123!",
-        "KANDOR_VIEWER_PASSWORD": "ViewerPassword123!",
-        "KANDOR_DEMO_BOOTSTRAP_SECRET": "demo-test-secret-1234567890",
-        "KANDOR_RATE_LIMIT_REQUESTS": "10000",
-        "KANDOR_LOGIN_RATE_LIMIT_REQUESTS": "1000",
-        "KANDOR_SESSION_TIMEOUT_MINUTES": "60",
+        "ASHBORNE_ENVIRONMENT": "test",
+        "ASHBORNE_DATABASE_URL": "sqlite+aiosqlite:///./ashborne-test.db",
+        "ASHBORNE_SECRET_KEY": "test-only-secret-that-is-long-enough-1234567890",
+        "ASHBORNE_REDIS_URL": "",
+        "ASHBORNE_AUTO_CREATE_TABLES": "true",
+        "ASHBORNE_SEED_DEVELOPMENT": "true",
+        "ASHBORNE_ADMIN_PASSWORD": "AdminPassword123!",
+        "ASHBORNE_OPERATOR_PASSWORD": "OperatorPassword123!",
+        "ASHBORNE_VIEWER_PASSWORD": "ViewerPassword123!",
+        "ASHBORNE_DEMO_BOOTSTRAP_SECRET": "demo-test-secret-1234567890",
+        "ASHBORNE_RATE_LIMIT_REQUESTS": "10000",
+        "ASHBORNE_LOGIN_RATE_LIMIT_REQUESTS": "1000",
+        "ASHBORNE_SESSION_TIMEOUT_MINUTES": "60",
     }
 )
 

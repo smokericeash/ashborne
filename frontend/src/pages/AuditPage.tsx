@@ -181,8 +181,8 @@ export function AuditPage() {
     <div className="animate-slide-in">
       <PageHeader
         eyebrow="Immutable record"
-        title="Audit log"
-        description="Search the accountability trail for authentication, enrollment, agent, task, and administrative events."
+        title="Timeline / audit"
+        description="Search the immutable operation timeline for authentication, enrollment, host, task, and administrative events."
         actions={
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/[.04] px-3 py-2 text-[10px] font-semibold uppercase tracking-[.12em] text-emerald-300">
             <ShieldCheck className="h-3.5 w-3.5" /> Append only
@@ -224,7 +224,7 @@ export function AuditPage() {
           >
             <Filter className="h-3.5 w-3.5" /> Filters
             {activeFilters > 0 && (
-              <span className="grid h-5 min-w-5 place-items-center rounded bg-kandor-400/15 px-1 text-[10px] text-kandor-300">
+              <span className="grid h-5 min-w-5 place-items-center rounded bg-ashborne-400/15 px-1 text-[10px] text-ashborne-300">
                 {activeFilters}
               </span>
             )}
@@ -326,7 +326,7 @@ export function AuditPage() {
         ) : resource.data?.items.length ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full" aria-label="KANDOR audit events">
+              <table className="w-full" aria-label="ASHBORNE audit events">
                 <thead className="border-b border-line/70 bg-void/25">
                   <tr>
                     <th className="table-heading w-8">
@@ -359,7 +359,7 @@ export function AuditPage() {
             description={
               activeFilters
                 ? "Adjust or clear filters to widen the immutable event search."
-                : "Audit events will appear as users and agents interact with KANDOR."
+                : "Audit events will appear as users and agents interact with ASHBORNE."
             }
             icon={<Fingerprint className="h-5 w-5" />}
           />

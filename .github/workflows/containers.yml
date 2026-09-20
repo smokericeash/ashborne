@@ -15,12 +15,28 @@ concurrency:
 jobs:
   compose:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Prepare non-production CI environment
         run: cp .env.example .env
       - name: Validate Compose model
         run: docker compose --profile demo config --quiet
-      - name: Build every KANDOR image
+      - name: Build every ASHBORNE image
         run: docker compose --profile demo build --pull
-
+      - name: Start the isolated demo stack
+        run: docker compose --profile demo up -d --wait
+      - name: Verify host-facing ports
+        run: |
+          docker compose --profile demo ps
+          curl --fail --show-error http://127.0.0.1:3000/
+          curl --fail --show-error http://127.0.0.1:8000/health/live
+          curl --fail --show-error http://127.0.0.1:8000/health/ready
+      - name: Exercise public API contracts
+        run: python3 scripts/smoke_test.py
+      - name: Print diagnostics after a failure
+        if: failure()
+        run: docker compose --profile demo logs --no-color --since=10m
+      - name: Stop the demo stack
+        if: always()
+        run: docker compose --profile demo down --volumes --remove-orphans

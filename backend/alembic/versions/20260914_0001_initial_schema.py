@@ -1,4 +1,4 @@
-"""Create the initial KANDOR application schema.
+"""Create the initial ASHBORNE application schema.
 
 Revision ID: 20260914_0001
 Revises:
@@ -32,13 +32,18 @@ agent_status = sa.Enum(
     native_enum=False,
 )
 task_type = sa.Enum(
+    "QUICK_RECON",
     "SYSTEM_INFO",
     "HOSTNAME",
     "CURRENT_USER",
+    "SECURITY_CONTEXT",
     "CPU_INFO",
     "MEMORY_USAGE",
     "DISK_USAGE",
+    "FILE_SYSTEM_OVERVIEW",
     "NETWORK_INTERFACES",
+    "NETWORK_CONNECTIONS",
+    "ROUTE_TABLE",
     "UPTIME",
     "PROCESS_INVENTORY",
     "INSTALLED_SOFTWARE",

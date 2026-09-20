@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 
-from kandor_agent.client import AgentAPIError
-from kandor_agent.config import AgentConfig
-from kandor_agent.heartbeat import AgentRunner
-from kandor_agent.models import PendingTask, TaskResult
-from kandor_agent.outbox import ResultOutbox
+from ashborne_agent.client import AgentAPIError
+from ashborne_agent.config import AgentConfig
+from ashborne_agent.heartbeat import AgentRunner
+from ashborne_agent.models import PendingTask, TaskResult
+from ashborne_agent.outbox import ResultOutbox
 
 
 class FakeClient:

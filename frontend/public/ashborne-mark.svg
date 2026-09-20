@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ASHBORNE mark">
+  <rect width="64" height="64" rx="13" fill="#0b090b"/>
+  <path d="M11 53 31.5 10 53 53M20 38h24" fill="none" stroke="#ef6b85" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+  <circle cx="50" cy="14" r="3" fill="#d83a5f"/>
+</svg>

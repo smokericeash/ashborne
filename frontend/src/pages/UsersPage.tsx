@@ -146,7 +146,7 @@ export function UsersPage() {
       <PageHeader
         eyebrow="Access control"
         title="Users"
-        description="Manage KANDOR identities, roles, and account status."
+        description="Manage ASHBORNE identities, roles, and account status."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> Create user
@@ -195,7 +195,7 @@ export function UsersPage() {
         ) : resource.data?.items.length ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full" aria-label="KANDOR users">
+              <table className="w-full" aria-label="ASHBORNE users">
                 <thead className="border-b border-line/70 bg-void/25">
                   <tr>
                     <th className="table-heading">Identity</th>
@@ -222,7 +222,7 @@ export function UsersPage() {
                               <p className="font-medium text-slate-200">
                                 {account.display_name || "Unnamed user"}
                                 {isSelf && (
-                                  <span className="ml-2 text-[9px] uppercase tracking-wider text-kandor-400">
+                                  <span className="ml-2 text-[9px] uppercase tracking-wider text-ashborne-400">
                                     You
                                   </span>
                                 )}
@@ -327,7 +327,7 @@ export function UsersPage() {
         ) : (
           <EmptyState
             title="No users match"
-            description="Change the search or role filter, or create a KANDOR identity."
+            description="Change the search or role filter, or create a ASHBORNE identity."
             icon={<Users className="h-5 w-5" />}
           />
         )}
@@ -335,7 +335,7 @@ export function UsersPage() {
 
       <Modal
         open={createOpen}
-        title="Create KANDOR user"
+        title="Create ASHBORNE user"
         description="Assign the minimum role required. Account creation is audited."
         onClose={() => !submitting && setCreateOpen(false)}
       >
@@ -448,7 +448,7 @@ export function UsersPage() {
           <p className="text-sm text-slate-400">
             Remove{" "}
             <strong className="text-slate-200">{deleteUser?.email}</strong> from
-            KANDOR?
+            ASHBORNE?
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDeleteUser(null)}>
