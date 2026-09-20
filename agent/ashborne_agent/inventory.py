@@ -562,17 +562,17 @@ def _windows_software(limit: int) -> Iterable[dict[str, str | None]]:
         r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
     )
     yielded = 0
-    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):  # type: ignore[attr-defined]
         for registry_path in paths:
             try:
-                root = winreg.OpenKey(hive, registry_path)
+                root = winreg.OpenKey(hive, registry_path)  # type: ignore[attr-defined]
             except OSError:
                 continue
             with root:
-                for index in range(winreg.QueryInfoKey(root)[0]):
+                for index in range(winreg.QueryInfoKey(root)[0]):  # type: ignore[attr-defined]
                     try:
-                        subkey_name = winreg.EnumKey(root, index)
-                        subkey = winreg.OpenKey(root, subkey_name)
+                        subkey_name = winreg.EnumKey(root, index)  # type: ignore[attr-defined]
+                        subkey = winreg.OpenKey(root, subkey_name)  # type: ignore[attr-defined]
                         with subkey:
                             name = _registry_value(winreg, subkey, "DisplayName")
                             version = _registry_value(winreg, subkey, "DisplayVersion")

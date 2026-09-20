@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="C:\Users\super\Documents\screenshots\ashborne-logo.png" alt="ASHBORNE Logo" width="320">
+  <img src="docs/screenshots/ashborne-logo.png" alt="ASHBORNE Logo" width="320">
 </p>
 
 # ASHBORNE
