@@ -18,7 +18,7 @@ function resultPayload(result: unknown) {
   return asRecord(envelope?.data) ?? envelope;
 }
 
-function valueText(value: unknown) {
+function valueText(value: unknown): string {
   if (value == null || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.map(valueText).join(", ") || "—";
@@ -135,10 +135,10 @@ function Summary({ task }: { task: AshborneTask }) {
       const addresses = Array.isArray(item.addresses) ? item.addresses : [];
       return addresses.length
         ? addresses.map((address: unknown) => [
-            item.name,
-            asRecord(address)?.address ?? address,
-            item.is_up === true ? "UP" : item.is_up === false ? "DOWN" : "—",
-          ])
+          item.name,
+          asRecord(address)?.address ?? address,
+          item.is_up === true ? "UP" : item.is_up === false ? "DOWN" : "—",
+        ])
         : [[item.name, "—", item.is_up ? "UP" : "DOWN"]];
     });
     return <ResultTable headers={["Interface", "Address", "State"]} rows={rows} />;
@@ -265,11 +265,10 @@ export const StructuredResult = memo(function StructuredResult({
           <button
             key={item.id}
             type="button"
-            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition ${
-              tab === item.id
+            className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition ${tab === item.id
                 ? "border-ashborne-400 text-slate-100"
                 : "border-transparent text-slate-600 hover:text-slate-300"
-            }`}
+              }`}
             onClick={() => setTab(item.id)}
           >
             <item.icon className="h-3.5 w-3.5" /> {item.label}

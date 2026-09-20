@@ -17,13 +17,17 @@ import {
   Spinner,
   StatusBadge,
 } from "../components/ui";
-import { useLive } from "../context/useLive";
+import {
+  useDashboardRevision,
+  useLiveConnection,
+} from "../context/useLive";
 import { useResource } from "../hooks/useResource";
 import { formatRelativeTime } from "../lib/utils";
 import { api } from "../services/api";
 
 export function DashboardPage() {
-  const { dashboardRevision, connected } = useLive();
+  const dashboardRevision = useDashboardRevision();
+  const connected = useLiveConnection();
   const resource = useResource(
     async () => {
       const [metrics, activity] = await Promise.all([

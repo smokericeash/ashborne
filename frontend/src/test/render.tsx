@@ -3,7 +3,14 @@ import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "../context/useAuth";
-import { LiveContext } from "../context/useLive";
+import {
+  AgentsRevisionContext,
+  AuditRevisionContext,
+  DashboardRevisionContext,
+  LiveConnectionContext,
+  LiveContext,
+  TasksRevisionContext,
+} from "../context/useLive";
 import { HostSelectionProvider } from "../context/HostSelectionContext";
 import { ToastContext } from "../context/useToast";
 import type { User } from "../types";
@@ -70,21 +77,31 @@ export function renderWithContexts(
   return render(
     <MemoryRouter initialEntries={[route]}>
       <AuthContext.Provider value={auth}>
-        <LiveContext.Provider
-          value={{
-            connected,
-            lastEvent: null,
-            revision: 0,
-            agentsRevision: 0,
-            tasksRevision: 0,
-            auditRevision: 0,
-            dashboardRevision: 0,
-          }}
-        >
-          <ToastContext.Provider value={{ notify: vi.fn() }}>
-            <HostSelectionProvider>{ui}</HostSelectionProvider>
-          </ToastContext.Provider>
-        </LiveContext.Provider>
+        <LiveConnectionContext.Provider value={connected}>
+          <AgentsRevisionContext.Provider value={0}>
+            <TasksRevisionContext.Provider value={0}>
+              <AuditRevisionContext.Provider value={0}>
+                <DashboardRevisionContext.Provider value={0}>
+                  <LiveContext.Provider
+                    value={{
+                      connected,
+                      lastEvent: null,
+                      revision: 0,
+                      agentsRevision: 0,
+                      tasksRevision: 0,
+                      auditRevision: 0,
+                      dashboardRevision: 0,
+                    }}
+                  >
+                    <ToastContext.Provider value={{ notify: vi.fn() }}>
+                      <HostSelectionProvider>{ui}</HostSelectionProvider>
+                    </ToastContext.Provider>
+                  </LiveContext.Provider>
+                </DashboardRevisionContext.Provider>
+              </AuditRevisionContext.Provider>
+            </TasksRevisionContext.Provider>
+          </AgentsRevisionContext.Provider>
+        </LiveConnectionContext.Provider>
       </AuthContext.Provider>
     </MemoryRouter>,
     renderOptions,

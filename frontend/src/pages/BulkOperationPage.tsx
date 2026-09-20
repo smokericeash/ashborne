@@ -22,7 +22,7 @@ import {
   StatusBadge,
 } from "../components/ui";
 import { useAuth } from "../context/useAuth";
-import { useLive } from "../context/useLive";
+import { useTasksRevision } from "../context/useLive";
 import { useToast } from "../context/useToast";
 import { useResource } from "../hooks/useResource";
 import { canIssueTasks, formatDate, humanize } from "../lib/utils";
@@ -46,7 +46,7 @@ export function BulkOperationPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { notify } = useToast();
-  const { tasksRevision } = useLive();
+  const tasksRevision = useTasksRevision();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [failedOnly, setFailedOnly] = useState(false);
   const [scopeConfirmed, setScopeConfirmed] = useState(false);

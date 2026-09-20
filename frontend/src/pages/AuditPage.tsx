@@ -19,7 +19,7 @@ import {
   Select,
   Spinner,
 } from "../components/ui";
-import { useLive } from "../context/useLive";
+import { useAuditRevision } from "../context/useLive";
 import { useResource } from "../hooks/useResource";
 import { formatDate, humanize } from "../lib/utils";
 import { api } from "../services/api";
@@ -104,7 +104,7 @@ function AuditRow({ event }: { event: AuditEvent }) {
 }
 
 export function AuditPage() {
-  const { auditRevision } = useLive();
+  const auditRevision = useAuditRevision();
   const eventTypesResource = useResource(() => api.audit.eventTypes(), []);
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");

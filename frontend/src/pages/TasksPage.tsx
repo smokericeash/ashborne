@@ -17,7 +17,7 @@ import {
 } from "../components/ui";
 import { StructuredResult } from "../components/StructuredResult";
 import { useAuth } from "../context/useAuth";
-import { useLive } from "../context/useLive";
+import { useTasksRevision } from "../context/useLive";
 import { useToast } from "../context/useToast";
 import { useResource } from "../hooks/useResource";
 import {
@@ -46,7 +46,7 @@ function taskDuration(task: AshborneTask) {
 
 export function TasksPage() {
   const { user } = useAuth();
-  const { tasksRevision } = useLive();
+  const tasksRevision = useTasksRevision();
   const { notify } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draftSearch, setDraftSearch] = useState("");

@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button, Card, PageHeader, StatusBadge } from "../components/ui";
 import { useAuth } from "../context/useAuth";
 import { useHostSelection } from "../context/useHostSelection";
-import { useLive } from "../context/useLive";
+import { useAgentsRevision, useLiveConnection } from "../context/useLive";
 import { useResource } from "../hooks/useResource";
 import { canIssueTasks } from "../lib/utils";
 import {
@@ -31,7 +31,8 @@ const HELP_LINES = [
 export function OperatorConsolePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { connected, agentsRevision } = useLive();
+  const connected = useLiveConnection();
+  const agentsRevision = useAgentsRevision();
   const selection = useHostSelection();
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);

@@ -1,13 +1,13 @@
 import { Bell, ChevronDown, LogOut, Menu, Radio } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../context/useAuth";
-import { useLive } from "../../context/useLive";
+import { useLiveConnection } from "../../context/useLive";
 import { cn, humanize, initials } from "../../lib/utils";
 import { Button } from "../ui";
 
 export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { user, logout } = useAuth();
-  const { connected } = useLive();
+  const connected = useLiveConnection();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (

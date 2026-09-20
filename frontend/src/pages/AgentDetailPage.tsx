@@ -27,7 +27,7 @@ import {
   Spinner,
   StatusBadge,
 } from "../components/ui";
-import { useLive } from "../context/useLive";
+import { useAgentsRevision, useTasksRevision } from "../context/useLive";
 import { useToast } from "../context/useToast";
 import { useResource } from "../hooks/useResource";
 import {
@@ -541,7 +541,8 @@ function useAgentData(id: string, revision: number) {
 export function AgentDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { agentsRevision, tasksRevision } = useLive();
+  const agentsRevision = useAgentsRevision();
+  const tasksRevision = useTasksRevision();
   const { notify } = useToast();
   const resource = useAgentData(id, agentsRevision + tasksRevision);
   const [tab, setTab] = useState<Tab>("overview");

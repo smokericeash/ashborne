@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { LiveEvent } from "../types";
 import { subscribeToEvents } from "../services/events";
-import { LiveContext } from "./useLive";
+import {
+  AgentsRevisionContext,
+  AuditRevisionContext,
+  DashboardRevisionContext,
+  LiveConnectionContext,
+  LiveContext,
+  TasksRevisionContext,
+} from "./useLive";
 
 export function LiveProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
@@ -50,5 +57,17 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       dashboardRevision,
     ],
   );
-  return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
+  return (
+    <LiveConnectionContext.Provider value={connected}>
+      <AgentsRevisionContext.Provider value={agentsRevision}>
+        <TasksRevisionContext.Provider value={tasksRevision}>
+          <AuditRevisionContext.Provider value={auditRevision}>
+            <DashboardRevisionContext.Provider value={dashboardRevision}>
+              <LiveContext.Provider value={value}>{children}</LiveContext.Provider>
+            </DashboardRevisionContext.Provider>
+          </AuditRevisionContext.Provider>
+        </TasksRevisionContext.Provider>
+      </AgentsRevisionContext.Provider>
+    </LiveConnectionContext.Provider>
+  );
 }

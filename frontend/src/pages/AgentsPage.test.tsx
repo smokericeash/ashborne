@@ -149,6 +149,7 @@ describe("AgentsPage", () => {
         [zulu.id, alpha.id],
         "QUICK_RECON",
         true,
+        {},
       ),
     );
 

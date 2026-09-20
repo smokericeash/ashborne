@@ -267,6 +267,130 @@ def main() -> int:
     require(completed["status"] == "SUCCESS", "task result did not reach SUCCESS")
     steps.append("strict allowlist and full task lifecycle")
 
+    second_issued = api.request(
+        "POST",
+        "/api/v1/enrollment/tokens",
+        token=admin_access,
+        body={"expires_in_seconds": 300, "description": "bulk smoke validation"},
+        expected=201,
+    ).body
+    second_agent_id = str(uuid.uuid4())
+    second_identity = {
+        **identity,
+        "agent_id": second_agent_id,
+        "name": f"smoke-{second_agent_id[:8]}",
+        "hostname": "ashborne-bulk-smoke.local",
+        "ip_address": "192.0.2.11",
+    }
+    second_enrolled = api.request(
+        "POST",
+        "/api/v1/enrollment",
+        body={"token": second_issued["token"], **second_identity},
+        expected=201,
+    ).body
+    second_credential = second_enrolled["credential"]
+    api.request(
+        "POST",
+        f"/api/v1/agents/{second_agent_id}/heartbeat",
+        token=second_credential,
+        body={
+            "timestamp": datetime.now(UTC).isoformat(),
+            "agent_version": "0.1.0-smoke",
+            "uptime_seconds": 21,
+            "hostname": second_identity["hostname"],
+            "ip_address": second_identity["ip_address"],
+            "health": {"state": "ok"},
+        },
+    )
+    bulk = api.request(
+        "POST",
+        "/api/v1/tasks/bulk",
+        token=admin_access,
+        body={
+            "authorized_scope_confirmed": True,
+            "agent_ids": [agent_id, second_agent_id],
+            "task_type": "PING",
+            "parameters": {"message": "bulk-smoke"},
+        },
+        expected=201,
+    ).body
+    bulk_operation_id = bulk["bulk_operation_id"]
+    require(bulk["target_count"] == 2, "bulk operation target count is wrong")
+    require(
+        len({task["id"] for task in bulk["tasks"]}) == 2,
+        "bulk operation did not create independent task UUIDs",
+    )
+    require(
+        {task["bulk_operation_id"] for task in bulk["tasks"]}
+        == {bulk_operation_id},
+        "bulk operation grouping is inconsistent",
+    )
+    tasks_by_agent = {task["agent_id"]: task for task in bulk["tasks"]}
+    for target_id, credential, outcome in (
+        (agent_id, agent_credential, "SUCCESS"),
+        (second_agent_id, second_credential, "FAILED"),
+    ):
+        target_task = tasks_by_agent[target_id]
+        dispatched = api.request(
+            "GET", f"/api/v1/agents/{target_id}/tasks", token=credential
+        ).body
+        require(
+            target_task["id"] in {item["id"] for item in dispatched["items"]},
+            "bulk task was not independently dispatched to its target",
+        )
+        api.request(
+            "POST",
+            f"/api/v1/tasks/{target_task['id']}/start",
+            token=credential,
+            body={},
+        )
+        result_body = (
+            {
+                "status": "SUCCESS",
+                "result": {
+                    "task_type": "PING",
+                    "data": {"pong": True, "message": "bulk-smoke"},
+                },
+            }
+            if outcome == "SUCCESS"
+            else {"status": "FAILED", "error_message": "expected smoke failure"}
+        )
+        api.request(
+            "POST",
+            f"/api/v1/tasks/{target_task['id']}/result",
+            token=credential,
+            body=result_body,
+        )
+    bulk_detail = api.request(
+        "GET",
+        f"/api/v1/tasks/bulk-operations/{bulk_operation_id}",
+        token=admin_access,
+    ).body
+    require(
+        bulk_detail["status_counts"]["SUCCESS"] == 1
+        and bulk_detail["status_counts"]["FAILED"] == 1,
+        "bulk operation did not preserve partial host outcomes",
+    )
+    retry = api.request(
+        "POST",
+        f"/api/v1/tasks/bulk-operations/{bulk_operation_id}/retry-failed",
+        token=admin_access,
+        body={"authorized_scope_confirmed": True},
+        expected=201,
+    ).body
+    require(
+        retry["target_count"] == 1
+        and retry["tasks"][0]["agent_id"] == second_agent_id,
+        "retry-failed did not isolate the failed target",
+    )
+    api.request(
+        "POST",
+        f"/api/v1/tasks/bulk-operations/{retry['bulk_operation_id']}/cancel-queued",
+        token=admin_access,
+        body={},
+    )
+    steps.append("independent bulk tasks, partial outcomes, and failed-only retry")
+
     viewer_login = api.request(
         "POST",
         "/api/v1/auth/login",
@@ -286,6 +410,18 @@ def main() -> int:
         },
         expected=403,
     )
+    api.request(
+        "POST",
+        "/api/v1/tasks/bulk",
+        token=viewer_access,
+        body={
+            "authorized_scope_confirmed": True,
+            "agent_ids": [agent_id, second_agent_id],
+            "task_type": "PING",
+            "parameters": {},
+        },
+        expected=403,
+    )
     api.request("GET", "/api/v1/audit?event_type=TASK_COMPLETED", token=viewer_access)
     steps.append("viewer read-only RBAC")
 
@@ -297,6 +433,18 @@ def main() -> int:
     require(
         any(event["metadata"].get("task_id") == task_id for event in audit["items"]),
         "task audit event is missing",
+    )
+    bulk_audit = api.request(
+        "GET",
+        "/api/v1/audit?event_type=BULK_OPERATION_CREATED",
+        token=admin_access,
+    ).body
+    require(
+        any(
+            event["metadata"].get("bulk_operation_id") == bulk_operation_id
+            for event in bulk_audit["items"]
+        ),
+        "bulk operation audit event is missing",
     )
     steps.append("audit trail")
 
@@ -318,6 +466,12 @@ def main() -> int:
 
     api.request(
         "DELETE", f"/api/v1/agents/{agent_id}", token=admin_access, expected=204
+    )
+    api.request(
+        "DELETE",
+        f"/api/v1/agents/{second_agent_id}",
+        token=admin_access,
+        expected=204,
     )
     api.request(
         "POST",

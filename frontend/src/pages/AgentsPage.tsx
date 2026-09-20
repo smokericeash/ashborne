@@ -25,7 +25,7 @@ import {
   Spinner,
   StatusBadge,
 } from "../components/ui";
-import { useLive } from "../context/useLive";
+import { useAgentsRevision } from "../context/useLive";
 import { useAuth } from "../context/useAuth";
 import { useHostSelection } from "../context/useHostSelection";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
@@ -82,7 +82,7 @@ export function AgentsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("last_seen");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const { agentsRevision } = useLive();
+  const agentsRevision = useAgentsRevision();
   const debouncedSearch = useDebouncedValue(draftSearch.trim());
 
   useEffect(() => {

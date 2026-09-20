@@ -1,5 +1,5 @@
 import { ArrowLeft, Play, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SelectedHost } from "../context/useHostSelection";
 import { useToast } from "../context/useToast";
@@ -10,7 +10,7 @@ import {
   TASK_DESCRIPTIONS,
   type TaskType,
 } from "../types";
-import { Button, Modal, Select, StatusBadge } from "./ui";
+import { Button, Input, Modal, Select, StatusBadge } from "./ui";
 
 export function BulkTaskDialog({
   open,
@@ -26,8 +26,26 @@ export function BulkTaskDialog({
   const [taskType, setTaskType] = useState<TaskType>("QUICK_RECON");
   const [reviewing, setReviewing] = useState(false);
   const [scopeConfirmed, setScopeConfirmed] = useState(false);
+  const [limit, setLimit] = useState(200);
+  const [allPartitions, setAllPartitions] = useState(false);
+  const [pingMessage, setPingMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const parameters = useMemo<Record<string, unknown>>(() => {
+    if (taskType === "DISK_USAGE") return { all_partitions: allPartitions };
+    if (
+      [
+        "PROCESS_INVENTORY",
+        "INSTALLED_SOFTWARE",
+        "LISTENING_PORTS",
+        "NETWORK_CONNECTIONS",
+      ].includes(taskType)
+    )
+      return { limit: Math.max(1, Math.min(500, limit)) };
+    if (taskType === "PING" && pingMessage.trim())
+      return { message: pingMessage.trim().slice(0, 256) };
+    return {};
+  }, [allPartitions, limit, pingMessage, taskType]);
 
   useEffect(() => {
     if (open) return;
@@ -45,6 +63,7 @@ export function BulkTaskDialog({
         hosts.map((host) => host.id),
         taskType,
         true,
+        parameters,
       );
       notify(
         `${humanize(taskType)} queued as ${hosts.length} independent tasks.`,
@@ -98,9 +117,52 @@ export function BulkTaskDialog({
               <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-slate-500">
                 Parameters
               </p>
-              <p className="mt-1 text-xs text-slate-400">
-                This bounded action uses its validated default parameters.
-              </p>
+              {taskType === "DISK_USAGE" ? (
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+                  <input
+                    className="h-4 w-4 accent-ashborne-400"
+                    type="checkbox"
+                    checked={allPartitions}
+                    onChange={(event) => setAllPartitions(event.target.checked)}
+                  />
+                  Include all locally visible partitions
+                </label>
+              ) : [
+                  "PROCESS_INVENTORY",
+                  "INSTALLED_SOFTWARE",
+                  "LISTENING_PORTS",
+                  "NETWORK_CONNECTIONS",
+                ].includes(taskType) ? (
+                <div className="mt-2 max-w-48">
+                  <label className="label" htmlFor="bulk-result-limit">
+                    Result limit (1–500)
+                  </label>
+                  <Input
+                    id="bulk-result-limit"
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={limit}
+                    onChange={(event) => setLimit(Number(event.target.value))}
+                  />
+                </div>
+              ) : taskType === "PING" ? (
+                <div className="mt-2">
+                  <label className="label" htmlFor="bulk-ping-message">
+                    Optional message (max 256 characters)
+                  </label>
+                  <Input
+                    id="bulk-ping-message"
+                    maxLength={256}
+                    value={pingMessage}
+                    onChange={(event) => setPingMessage(event.target.value)}
+                  />
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-slate-400">
+                  This bounded action has no operator-configurable parameters.
+                </p>
+              )}
             </div>
             <div className="mt-5 flex justify-end">
               <Button disabled={!hosts.length} onClick={() => setReviewing(true)}>
@@ -122,6 +184,9 @@ export function BulkTaskDialog({
               <span className="font-mono text-xs text-ashborne-300">
                 {hosts.length} TASKS
               </span>
+            </div>
+            <div className="mt-3 rounded-lg bg-black/20 px-3 py-2 font-mono text-[10px] text-slate-500">
+              Parameters: {Object.keys(parameters).length ? JSON.stringify(parameters) : "none"}
             </div>
             <div className="mt-4 max-h-60 divide-y divide-line/50 overflow-auto rounded-lg border border-line/70">
               {hosts.map((host) => (
