@@ -119,7 +119,7 @@ Requirements: Docker Engine/Desktop with Compose v2, Python 3.12+ for helper
 scripts, at least 2 GB free memory, and host ports 3000 and 8000 available.
 
 ```bash
-git clone <your-ashborne-repository-url> ashborne
+git clone https://github.com/smokericeash/ashborne.git
 cd ashborne
 python scripts/generate_env.py
 docker compose up --build -d
