@@ -15,6 +15,7 @@ import {
   Spinner,
   StatusBadge,
 } from "../components/ui";
+import { StructuredResult } from "../components/StructuredResult";
 import { useAuth } from "../context/useAuth";
 import { useLive } from "../context/useLive";
 import { useToast } from "../context/useToast";
@@ -45,7 +46,7 @@ function taskDuration(task: AshborneTask) {
 
 export function TasksPage() {
   const { user } = useAuth();
-  const { revision } = useLive();
+  const { tasksRevision } = useLive();
   const { notify } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draftSearch, setDraftSearch] = useState("");
@@ -58,7 +59,7 @@ export function TasksPage() {
 
   const resource = useResource(
     () => api.tasks.list({ search, status, task_type: taskType, skip }),
-    [search, status, taskType, skip, revision],
+    [search, status, taskType, skip, tasksRevision],
   );
 
   useEffect(() => {
@@ -232,6 +233,14 @@ export function TasksPage() {
                         <p className="mt-1 max-w-40 truncate font-mono text-[9px] text-slate-700">
                           {task.id}
                         </p>
+                        {task.bulk_operation_id && (
+                          <Link
+                            className="mt-1 block text-[10px] text-ashborne-400 hover:text-ashborne-300"
+                            to={`/bulk-operations/${task.bulk_operation_id}`}
+                          >
+                            Bulk operation
+                          </Link>
+                        )}
                       </td>
                       <td className="table-cell">
                         <Link
@@ -341,12 +350,9 @@ export function TasksPage() {
                 {selected.error_message}
               </div>
             )}
-            <p className="label mt-5">Structured result</p>
-            <pre className="max-h-[45vh] overflow-auto rounded-lg border border-line bg-void p-4 text-xs leading-5 text-slate-400">
-              {selected.result != null
-                ? JSON.stringify(selected.result, null, 2)
-                : "No result is available yet."}
-            </pre>
+            <div className="mt-5">
+              <StructuredResult task={selected} />
+            </div>
             {canIssueTasks(user?.role) &&
               (selected.status === "QUEUED" ||
                 selected.status === "DISPATCHED") && (

@@ -2,13 +2,16 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Play,
   Search,
   ShieldCheck,
+  SquareTerminal,
   Tags,
   X,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { BulkTaskDialog } from "../components/BulkTaskDialog";
 import {
   Badge,
   Button,
@@ -23,8 +26,11 @@ import {
   StatusBadge,
 } from "../components/ui";
 import { useLive } from "../context/useLive";
+import { useAuth } from "../context/useAuth";
+import { useHostSelection } from "../context/useHostSelection";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useResource } from "../hooks/useResource";
-import { formatRelativeTime } from "../lib/utils";
+import { canIssueTasks, formatRelativeTime } from "../lib/utils";
 import { api } from "../services/api";
 import type { Agent } from "../types";
 
@@ -65,6 +71,9 @@ function SortButton({
 }
 
 export function AgentsPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const selection = useHostSelection();
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -72,7 +81,14 @@ export function AgentsPage() {
   const [skip, setSkip] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("last_seen");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const { revision } = useLive();
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const { agentsRevision } = useLive();
+  const debouncedSearch = useDebouncedValue(draftSearch.trim());
+
+  useEffect(() => {
+    setSearch(debouncedSearch);
+    setSkip(0);
+  }, [debouncedSearch]);
 
   const resource = useResource(
     () =>
@@ -84,10 +100,19 @@ export function AgentsPage() {
         sort_order: sortDirection,
         skip,
       }),
-    [search, status, tag, sortKey, sortDirection, skip, revision],
+    [search, status, tag, sortKey, sortDirection, skip, agentsRevision],
   );
 
-  const agents = resource.data?.items ?? [];
+  const agents = useMemo(() => resource.data?.items ?? [], [resource.data?.items]);
+  const selectable = canIssueTasks(user?.role);
+  const visibleIds = useMemo(() => agents.map((agent) => agent.id), [agents]);
+  const selectedVisible = useMemo(
+    () => visibleIds.filter((id) => selection.selectedIds.has(id)).length,
+    [selection.selectedIds, visibleIds],
+  );
+  const allVisibleSelected = Boolean(
+    visibleIds.length && selectedVisible === visibleIds.length,
+  );
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -95,14 +120,19 @@ export function AgentsPage() {
     setSearch(draftSearch.trim());
   };
 
-  const sort = (column: SortKey) => {
+  const sort = useCallback((column: SortKey) => {
     if (sortKey === column)
       setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
     else {
       setSortKey(column);
       setSortDirection("asc");
     }
-  };
+  }, [sortKey]);
+
+  const toggleVisible = useCallback(() => {
+    if (allVisibleSelected) selection.deselectHosts(visibleIds);
+    else selection.selectHosts(agents);
+  }, [agents, allVisibleSelected, selection, visibleIds]);
 
   const clearFilters = () => {
     setDraftSearch("");
@@ -209,6 +239,17 @@ export function AgentsPage() {
               >
                 <thead className="border-b border-line/70 bg-void/25">
                   <tr>
+                    {selectable && (
+                      <th className="w-12 px-4 py-3">
+                        <input
+                          aria-label="Select all visible lab hosts"
+                          className="h-4 w-4 accent-ashborne-400"
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={toggleVisible}
+                        />
+                      </th>
+                    )}
                     <th className="table-heading">
                       <SortButton
                         label="Enrollment"
@@ -271,8 +312,19 @@ export function AgentsPage() {
                   {agents.map((agent: Agent) => (
                     <tr
                       key={agent.id}
-                      className="group transition hover:bg-white/[.025]"
+                      className={`group transition hover:bg-white/[.025] ${selection.isSelected(agent.id) ? "bg-ashborne-400/[.045]" : ""}`}
                     >
+                      {selectable && (
+                        <td className="w-12 px-4 py-3.5">
+                          <input
+                            aria-label={`Select ${agent.name || agent.hostname}`}
+                            className="h-4 w-4 accent-ashborne-400"
+                            type="checkbox"
+                            checked={selection.isSelected(agent.id)}
+                            onChange={() => selection.toggleHost(agent)}
+                          />
+                        </td>
+                      )}
                       <td className="table-cell">
                         <Link
                           to={`/agents/${agent.id}`}
@@ -360,6 +412,45 @@ export function AgentsPage() {
           />
         )}
       </Card>
+
+      {selectable && selection.selectedHosts.length > 0 && (
+        <div className="sticky bottom-4 z-20 mt-4 flex flex-col gap-3 rounded-xl border border-ashborne-400/25 bg-[#151315]/95 px-4 py-3 shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-mono text-xs font-semibold uppercase tracking-[.14em] text-slate-100">
+              {selection.selectedHosts.length} host{selection.selectedHosts.length === 1 ? "" : "s"} selected
+            </p>
+            <p className="mt-0.5 text-[10px] text-slate-600">
+              Selection persists while using task controls and the console.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setBulkDialogOpen(true)}>
+              <Play className="h-3.5 w-3.5" /> Run task
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => navigate("/console")}
+            >
+              <SquareTerminal className="h-3.5 w-3.5" /> Open console
+            </Button>
+            <Button
+              aria-label="Deselect all hosts"
+              size="sm"
+              variant="ghost"
+              onClick={selection.clearSelection}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <BulkTaskDialog
+        open={bulkDialogOpen}
+        hosts={selection.selectedHosts}
+        onClose={() => setBulkDialogOpen(false)}
+      />
     </div>
   );
 }

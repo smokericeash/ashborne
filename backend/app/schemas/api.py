@@ -338,6 +338,37 @@ class TaskCreate(APIModel):
         return value
 
 
+class BulkTaskCreate(APIModel):
+    agent_ids: list[str] = Field(min_length=1, max_length=100)
+    task_type: TaskType
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    authorized_scope_confirmed: StrictBool
+    expires_in_seconds: int | None = Field(default=None, ge=60, le=604_800)
+
+    @field_validator("agent_ids")
+    @classmethod
+    def valid_unique_agent_ids(cls, values: list[str]) -> list[str]:
+        normalized = [AgentIdentity.valid_uuid(value) for value in values]
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("agent_ids must be unique")
+        return normalized
+
+    @field_validator("authorized_scope_confirmed")
+    @classmethod
+    def scope_must_be_confirmed(cls, value: bool) -> bool:
+        return TaskCreate.scope_must_be_confirmed(value)
+
+
+class BulkOperationAction(APIModel):
+    authorized_scope_confirmed: StrictBool
+    expires_in_seconds: int | None = Field(default=None, ge=60, le=604_800)
+
+    @field_validator("authorized_scope_confirmed")
+    @classmethod
+    def scope_must_be_confirmed(cls, value: bool) -> bool:
+        return TaskCreate.scope_must_be_confirmed(value)
+
+
 class TaskResultSubmission(APIModel):
     status: Literal["SUCCESS", "FAILED"]
     result: dict[str, Any] | None = None
@@ -369,6 +400,7 @@ class TaskResultSubmission(APIModel):
 class TaskResponse(APIModel):
     id: str
     agent_id: str
+    bulk_operation_id: str | None = None
     agent_name: str | None = None
     task_type: TaskType
     parameters: dict[str, Any]
@@ -391,6 +423,29 @@ class TaskList(APIModel):
     skip: int
     limit: int
     count: int | None = None
+
+
+class BulkOperationSummary(APIModel):
+    bulk_operation_id: str
+    task_type: TaskType
+    parameters: dict[str, Any]
+    requested_by_id: str | None
+    requested_by: str | None = None
+    requested_by_email: EmailAddress | None = None
+    created_at: datetime
+    target_count: int
+    status_counts: dict[TaskStatus, int]
+
+
+class BulkOperationResponse(BulkOperationSummary):
+    tasks: list[TaskResponse]
+
+
+class BulkOperationList(APIModel):
+    items: list[BulkOperationSummary]
+    total: int
+    skip: int
+    limit: int
 
 
 class AuditResponse(APIModel):

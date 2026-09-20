@@ -93,4 +93,66 @@ describe("AgentsPage", () => {
       expect(rows[1]).toHaveTextContent("Zulu sensor");
     });
   });
+
+  it("selects hosts in bulk, keeps one target per agent, and clears the selection", async () => {
+    vi.spyOn(api.agents, "list").mockResolvedValue({
+      items: [zulu, alpha],
+      total: 2,
+      skip: 0,
+      limit: 25,
+    });
+    const bulkCreate = vi.spyOn(api.tasks, "bulkCreate").mockResolvedValue({
+      bulk_operation_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      task_type: "QUICK_RECON",
+      parameters: {},
+      created_at: "2026-09-20T00:00:00Z",
+      target_count: 2,
+      status_counts: {
+        QUEUED: 2,
+        DISPATCHED: 0,
+        RUNNING: 0,
+        SUCCESS: 0,
+        FAILED: 0,
+        CANCELLED: 0,
+        EXPIRED: 0,
+      },
+      tasks: [],
+    });
+    const user = userEvent.setup();
+    renderWithContexts(<AgentsPage />);
+
+    await screen.findByText("Zulu sensor");
+    await user.click(
+      screen.getByRole("checkbox", { name: "Select all visible lab hosts" }),
+    );
+    expect(screen.getByText("2 hosts selected")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Select Zulu sensor" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Select Alpha sensor" }),
+    ).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: /run task/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Review 2 targets" }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Confirm authorized scope for selected hosts",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Run 2 tasks" }));
+
+    await waitFor(() =>
+      expect(bulkCreate).toHaveBeenCalledWith(
+        [zulu.id, alpha.id],
+        "QUICK_RECON",
+        true,
+      ),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Deselect all hosts" }));
+    expect(screen.queryByText("2 hosts selected")).not.toBeInTheDocument();
+  });
 });

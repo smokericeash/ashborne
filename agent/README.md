@@ -36,6 +36,17 @@ The exact typed-action catalog is:
 - `HOSTNAME`
 - `CURRENT_USER`
 - `SECURITY_CONTEXT`
+- `LINUX_KERNEL_INFO`
+- `LINUX_IDENTITY`
+- `GROUP_MEMBERSHIP`
+- `LINUX_CAPABILITIES`
+- `LINUX_MOUNTS`
+- `SAFE_ENVIRONMENT_OVERVIEW`
+- `SERVICE_OVERVIEW`
+- `SCHEDULED_ACTIVITY_OVERVIEW`
+- `PRIVILEGE_ENUMERATION`
+- `NETWORK_OVERVIEW`
+- `HOST_RECON`
 - `CPU_INFO`
 - `MEMORY_USAGE`
 - `DISK_USAGE`
@@ -53,9 +64,14 @@ The exact typed-action catalog is:
 Parameters are typed and reject unknown fields. Collection sizes and serialized
 results are capped. Quick Recon is passive and local-only. File actions inspect
 fixed-location metadata without content collection; network actions do not resolve
-DNS or probe remote targets. Process command lines and environment variables are
-never collected. Task results are saved to a permission-restricted outbox before
-upload, so a temporary disconnection does not discard completed work.
+DNS or probe remote targets. Process command lines and environment-variable values
+are never collected. The environment overview returns names only and omits any name
+containing `PASSWORD`, `PASS`, `TOKEN`, `SECRET`, `KEY`, `AUTH`, or `COOKIE`.
+Linux service and scheduled-activity actions inspect bounded entries in fixed
+system locations but never read unit, cron, or timer definitions. Unsupported
+platform-specific observations return an explicit `supported: false` result.
+Task results are saved to a permission-restricted outbox before upload, so a
+temporary disconnection does not discard completed work.
 
 ## Container demo enrollment
 

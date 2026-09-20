@@ -38,6 +38,33 @@ TASK_SPECS: dict[str, TaskSpec] = {
     "SECURITY_CONTEXT": TaskSpec(
         inventory.get_security_context, lambda value: _no_parameters(value)
     ),
+    "LINUX_KERNEL_INFO": TaskSpec(
+        inventory.get_linux_kernel_info, lambda value: _no_parameters(value)
+    ),
+    "LINUX_IDENTITY": TaskSpec(inventory.get_linux_identity, lambda value: _no_parameters(value)),
+    "GROUP_MEMBERSHIP": TaskSpec(
+        inventory.get_group_membership, lambda value: _no_parameters(value)
+    ),
+    "LINUX_CAPABILITIES": TaskSpec(
+        inventory.get_linux_capabilities, lambda value: _no_parameters(value)
+    ),
+    "LINUX_MOUNTS": TaskSpec(inventory.get_linux_mounts, lambda value: _no_parameters(value)),
+    "SAFE_ENVIRONMENT_OVERVIEW": TaskSpec(
+        inventory.get_safe_environment_overview, lambda value: _no_parameters(value)
+    ),
+    "SERVICE_OVERVIEW": TaskSpec(
+        inventory.get_service_overview, lambda value: _no_parameters(value)
+    ),
+    "SCHEDULED_ACTIVITY_OVERVIEW": TaskSpec(
+        inventory.get_scheduled_activity_overview, lambda value: _no_parameters(value)
+    ),
+    "PRIVILEGE_ENUMERATION": TaskSpec(
+        inventory.get_privilege_enumeration, lambda value: _no_parameters(value)
+    ),
+    "NETWORK_OVERVIEW": TaskSpec(
+        inventory.get_network_overview, lambda value: _no_parameters(value)
+    ),
+    "HOST_RECON": TaskSpec(inventory.get_host_recon, lambda value: _no_parameters(value)),
     "CPU_INFO": TaskSpec(inventory.get_cpu_info, lambda value: _no_parameters(value)),
     "MEMORY_USAGE": TaskSpec(inventory.get_memory_usage, lambda value: _no_parameters(value)),
     "DISK_USAGE": TaskSpec(inventory.get_disk_usage, lambda value: _disk_parameters(value)),

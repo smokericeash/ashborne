@@ -42,17 +42,42 @@ The operator catalog is organized as follows:
 
 | Area | Included typed actions |
 |---|---|
-| Recon | Quick Recon, System Info, Hostname, Current User, Uptime |
-| Host Enumeration | CPU, memory, disks, processes, installed software |
-| Privilege Enumeration | Security Context |
+| Recon | Quick Recon, Host Recon, System Info, Hostname, Current User, Uptime, Linux Kernel Info |
+| Host Enumeration | CPU, memory, disks, processes, installed software, mounts, services, scheduled activity, safe environment names |
+| Privilege Enumeration | Security Context, Linux Identity, Group Membership, Linux Capabilities, Privilege Enumeration |
 | Files | File System Overview with fixed-location metadata only |
-| Network | Interfaces, connections, route table, listening ports |
+| Network | Network Overview, interfaces, connections, route table, listening ports |
 | Agent Control | Agent Health and authenticated Ping |
 
 `QUICK_RECON` is a one-click passive baseline. It gathers bounded local system,
 security-context, interface, listener, route, uptime, and fixed-location metadata.
 It performs no active network probing, DNS resolution, file-content collection,
 payload execution, or arbitrary command dispatch.
+
+### Bulk host workflow
+
+The **Lab Hosts** page supports explicit multi-selection, select/deselect all,
+and a compact action bar. A bulk request follows the guarded sequence **select
+hosts → choose a typed action → configure parameters → confirm authorized scope
+→ review targets → run**. The server creates one independent task per selected
+agent. `bulk_operation_id` exists only to group those tasks for presentation;
+each target retains its own task UUID, lifecycle, result, error, timestamps, and
+audit events. Operation views support failed-only retry, queued-task cancellation,
+full rerun, copy, and JSON export.
+
+### Operator Console
+
+The **Operator Console** accepts familiar read-only aliases such as `hostname`,
+`whoami`, `id`, `uname -a`, `ps aux`, `ip addr`, `ip route`, `ss -tulpn`,
+`df -h`, `mount`, `env`, `quick-recon`, `host-recon`, and `priv-enum`. These are
+parsed locally and mapped to the same closed typed-action allowlist used by the
+GUI. It is not a shell: unknown commands are rejected, arguments cannot escape
+their declared mapping, and dispatch still requires target review and scope
+confirmation.
+
+Results open on a structured **Summary** view with **Raw**, **Timeline**, and
+**Audit** available for verification. Multi-host operations show per-host status
+and independently expandable results instead of merging agent output into a log.
 
 ## Architecture
 

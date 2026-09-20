@@ -54,10 +54,19 @@ NO_PARAMETER_TASKS = (
     TaskType.ROUTE_TABLE,
     TaskType.UPTIME,
     TaskType.AGENT_HEALTH,
+    TaskType.LINUX_KERNEL_INFO,
+    TaskType.LINUX_IDENTITY,
+    TaskType.GROUP_MEMBERSHIP,
+    TaskType.LINUX_CAPABILITIES,
+    TaskType.LINUX_MOUNTS,
+    TaskType.SAFE_ENVIRONMENT_OVERVIEW,
+    TaskType.SERVICE_OVERVIEW,
+    TaskType.SCHEDULED_ACTIVITY_OVERVIEW,
+    TaskType.PRIVILEGE_ENUMERATION,
+    TaskType.NETWORK_OVERVIEW,
+    TaskType.HOST_RECON,
 )
-ALLOWED_TASKS: dict[TaskType, type[BaseModel]] = {
-    task_type: NoParameters for task_type in NO_PARAMETER_TASKS
-}
+ALLOWED_TASKS: dict[TaskType, type[BaseModel]] = {task_type: NoParameters for task_type in NO_PARAMETER_TASKS}
 PARAMETERIZED_TASKS: dict[TaskType, type[BaseModel]] = {
     TaskType.DISK_USAGE: DiskUsageParameters,
     TaskType.PROCESS_INVENTORY: ProcessInventoryParameters,

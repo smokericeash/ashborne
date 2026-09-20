@@ -34,6 +34,83 @@ MAX_PORTS = 500
 MAX_CONNECTIONS = 500
 MAX_ROUTES = 256
 MAX_GROUPS = 64
+MAX_MOUNTS = 128
+MAX_ENVIRONMENT_NAMES = 256
+MAX_SERVICES = 128
+MAX_SCHEDULED_ITEMS = 128
+MAX_LOCAL_FILE_BYTES = 64 * 1024
+MAX_DIRECTORY_ENTRIES_SCANNED = 1024
+MAX_ENVIRONMENT_NAMES_SCANNED = 1024
+
+PROC_SELF_STATUS_PATH = Path("/proc/self/status")
+SYSTEMD_SERVICE_DIRS = (
+    Path("/etc/systemd/system"),
+    Path("/run/systemd/system"),
+    Path("/usr/lib/systemd/system"),
+    Path("/lib/systemd/system"),
+)
+CRON_PATHS = (
+    Path("/etc/crontab"),
+    Path("/etc/cron.d"),
+    Path("/etc/cron.hourly"),
+    Path("/etc/cron.daily"),
+    Path("/etc/cron.weekly"),
+    Path("/etc/cron.monthly"),
+    Path("/var/spool/cron"),
+    Path("/var/spool/cron/crontabs"),
+)
+SENSITIVE_ENVIRONMENT_NAME_PARTS = (
+    "PASSWORD",
+    "PASS",
+    "TOKEN",
+    "SECRET",
+    "KEY",
+    "AUTH",
+    "COOKIE",
+)
+LINUX_CAPABILITY_NAMES = (
+    "CAP_CHOWN",
+    "CAP_DAC_OVERRIDE",
+    "CAP_DAC_READ_SEARCH",
+    "CAP_FOWNER",
+    "CAP_FSETID",
+    "CAP_KILL",
+    "CAP_SETGID",
+    "CAP_SETUID",
+    "CAP_SETPCAP",
+    "CAP_LINUX_IMMUTABLE",
+    "CAP_NET_BIND_SERVICE",
+    "CAP_NET_BROADCAST",
+    "CAP_NET_ADMIN",
+    "CAP_NET_RAW",
+    "CAP_IPC_LOCK",
+    "CAP_IPC_OWNER",
+    "CAP_SYS_MODULE",
+    "CAP_SYS_RAWIO",
+    "CAP_SYS_CHROOT",
+    "CAP_SYS_PTRACE",
+    "CAP_SYS_PACCT",
+    "CAP_SYS_ADMIN",
+    "CAP_SYS_BOOT",
+    "CAP_SYS_NICE",
+    "CAP_SYS_RESOURCE",
+    "CAP_SYS_TIME",
+    "CAP_SYS_TTY_CONFIG",
+    "CAP_MKNOD",
+    "CAP_LEASE",
+    "CAP_AUDIT_WRITE",
+    "CAP_AUDIT_CONTROL",
+    "CAP_SETFCAP",
+    "CAP_MAC_OVERRIDE",
+    "CAP_MAC_ADMIN",
+    "CAP_SYSLOG",
+    "CAP_WAKE_ALARM",
+    "CAP_BLOCK_SUSPEND",
+    "CAP_AUDIT_READ",
+    "CAP_PERFMON",
+    "CAP_BPF",
+    "CAP_CHECKPOINT_RESTORE",
+)
 
 
 def utc_now() -> str:
@@ -120,7 +197,7 @@ def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
         try:
             import ctypes
 
-            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
+            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())
         except (AttributeError, OSError):
             elevated = None
 
@@ -129,18 +206,12 @@ def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
         with suppress(OSError):
             group_ids = sorted(set(os.getgroups()))[:MAX_GROUPS]
 
-    no_new_privileges: bool | None = None
-    effective_capabilities: str | None = None
-    status_path = Path("/proc/self/status")
-    if status_path.is_file():
-        try:
-            for line in status_path.read_text(encoding="utf-8", errors="replace").splitlines():
-                if line.startswith("NoNewPrivs:"):
-                    no_new_privileges = line.partition(":")[2].strip() == "1"
-                elif line.startswith("CapEff:"):
-                    effective_capabilities = line.partition(":")[2].strip()[:32]
-        except OSError:
-            pass
+    status_fields = _bounded_linux_status_fields(PROC_SELF_STATUS_PATH)[0]
+    no_new_privileges_value = status_fields.get("NoNewPrivs")
+    no_new_privileges = (
+        no_new_privileges_value == "1" if no_new_privileges_value is not None else None
+    )
+    effective_capabilities = status_fields.get("CapEff")
 
     return {
         "username": _current_user(),
@@ -153,6 +224,294 @@ def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
         "is_elevated": elevated,
         "no_new_privileges": no_new_privileges,
         "effective_capabilities_mask": effective_capabilities,
+    }
+
+
+def get_linux_kernel_info(_: dict[str, Any]) -> dict[str, Any]:
+    """Describe the local Linux kernel without invoking uname or another command."""
+
+    system = platform.system()
+    if system != "Linux":
+        return {"supported": False, "platform": system, "reason": "linux_only"}
+    uname = platform.uname()
+    return {
+        "supported": True,
+        "platform": system,
+        "hostname": socket.gethostname()[:255],
+        "kernel_release": _bounded_text(uname.release, 255),
+        "kernel_version": _bounded_text(uname.version, 1024),
+        "architecture": _bounded_text(uname.machine or platform.machine(), 255),
+    }
+
+
+def get_linux_identity(_: dict[str, Any]) -> dict[str, Any]:
+    """Return current-process Linux identity metadata, never credential material."""
+
+    system = platform.system()
+    if system != "Linux":
+        return {"supported": False, "platform": system, "reason": "linux_only"}
+    group_ids, groups_truncated = _current_group_ids()
+    return {
+        "supported": True,
+        "platform": system,
+        "username": _current_user(),
+        "uid": _safe_uid(),
+        "effective_uid": os.geteuid() if hasattr(os, "geteuid") else None,
+        "gid": _safe_gid(),
+        "effective_gid": os.getegid() if hasattr(os, "getegid") else None,
+        "group_ids": group_ids,
+        "group_names": _group_names(group_ids),
+        "groups_truncated": groups_truncated,
+        "credential_material_collected": False,
+    }
+
+
+def get_group_membership(_: dict[str, Any]) -> dict[str, Any]:
+    """Return the bounded group set already attached to the current process."""
+
+    if not hasattr(os, "getgroups"):
+        return {
+            "supported": False,
+            "platform": platform.system(),
+            "reason": "process_group_api_unavailable",
+        }
+    group_ids, truncated = _current_group_ids()
+    return {
+        "supported": True,
+        "platform": platform.system(),
+        "username": _current_user(),
+        "group_ids": group_ids,
+        "group_names": _group_names(group_ids),
+        "limit": MAX_GROUPS,
+        "truncated": truncated,
+    }
+
+
+def get_linux_capabilities(_: dict[str, Any]) -> dict[str, Any]:
+    """Read bounded capability masks for this process from the Linux procfs status file."""
+
+    system = platform.system()
+    if system != "Linux":
+        return {"supported": False, "platform": system, "reason": "linux_only"}
+    fields, source_truncated = _bounded_linux_status_fields(PROC_SELF_STATUS_PATH)
+    if not fields:
+        return {
+            "supported": False,
+            "platform": system,
+            "reason": "proc_status_unavailable",
+        }
+    masks = {
+        "inheritable": fields.get("CapInh"),
+        "permitted": fields.get("CapPrm"),
+        "effective": fields.get("CapEff"),
+        "bounding": fields.get("CapBnd"),
+        "ambient": fields.get("CapAmb"),
+    }
+    return {
+        "supported": True,
+        "platform": system,
+        "source": str(PROC_SELF_STATUS_PATH),
+        "source_truncated": source_truncated,
+        "masks": masks,
+        "effective_names": _capability_names(masks["effective"]),
+        "permitted_names": _capability_names(masks["permitted"]),
+        "bounding_names": _capability_names(masks["bounding"]),
+        "ambient_names": _capability_names(masks["ambient"]),
+        "no_new_privileges": _optional_flag(fields.get("NoNewPrivs")),
+        "seccomp_mode": _optional_integer(fields.get("Seccomp")),
+    }
+
+
+def get_linux_mounts(_: dict[str, Any]) -> dict[str, Any]:
+    """List bounded Linux mount metadata without reading mounted file contents."""
+
+    system = platform.system()
+    if system != "Linux":
+        return {"supported": False, "platform": system, "reason": "linux_only"}
+    try:
+        candidates = psutil.disk_partitions(all=True)
+    except (OSError, psutil.Error):
+        candidates = []
+    mounts: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for partition in candidates:
+        mountpoint = str(partition.mountpoint)[:1024]
+        device = _redacted_mount_device(getattr(partition, "device", ""))
+        key = (device or "", mountpoint)
+        if key in seen:
+            continue
+        seen.add(key)
+        options = str(getattr(partition, "opts", ""))
+        mounts.append(
+            {
+                "device": device,
+                "mountpoint": mountpoint,
+                "filesystem": _bounded_text(getattr(partition, "fstype", ""), 64),
+                "read_only": "ro" in options.split(","),
+            }
+        )
+        if len(mounts) > MAX_MOUNTS:
+            break
+    return {
+        "supported": True,
+        "platform": system,
+        "mounts": mounts[:MAX_MOUNTS],
+        "limit": MAX_MOUNTS,
+        "truncated": len(mounts) > MAX_MOUNTS,
+        "contents_collected": False,
+        "mount_options_collected": False,
+    }
+
+
+def get_safe_environment_overview(_: dict[str, Any]) -> dict[str, Any]:
+    """List non-sensitive environment variable names without returning any values."""
+
+    visible: list[str] = []
+    filtered_count = 0
+    inspected_count = 0
+    total_name_count = len(os.environ)
+    for name in os.environ:
+        if inspected_count >= MAX_ENVIRONMENT_NAMES_SCANNED:
+            break
+        inspected_count += 1
+        upper_name = name.upper()
+        if any(part in upper_name for part in SENSITIVE_ENVIRONMENT_NAME_PARTS):
+            filtered_count += 1
+            continue
+        if len(visible) <= MAX_ENVIRONMENT_NAMES:
+            visible.append(name[:255])
+    visible.sort(key=str.casefold)
+    return {
+        "supported": True,
+        "names": visible[:MAX_ENVIRONMENT_NAMES],
+        "limit": MAX_ENVIRONMENT_NAMES,
+        "truncated": (len(visible) > MAX_ENVIRONMENT_NAMES or inspected_count < total_name_count),
+        "inspected_count": inspected_count,
+        "total_name_count": total_name_count,
+        "filtered_count": filtered_count,
+        "values_collected": False,
+        "filtered_names_collected": False,
+    }
+
+
+def get_service_overview(_: dict[str, Any]) -> dict[str, Any]:
+    """Return bounded service names and state where a local API makes it available."""
+
+    system = platform.system()
+    if system == "Windows":
+        return _windows_service_overview()
+    if system == "Linux":
+        entries, sources, truncated = _fixed_directory_entries(
+            SYSTEMD_SERVICE_DIRS,
+            limit=MAX_SERVICES,
+            suffixes=(".service",),
+            kind="systemd_unit",
+        )
+        return {
+            "supported": bool(sources),
+            "platform": system,
+            "manager": "systemd_unit_files" if sources else None,
+            "services": entries,
+            "sources": sources,
+            "limit": MAX_SERVICES,
+            "truncated": truncated,
+            "status_available": False,
+            "unit_contents_collected": False,
+        }
+    return {"supported": False, "platform": system, "reason": "service_api_unavailable"}
+
+
+def get_scheduled_activity_overview(_: dict[str, Any]) -> dict[str, Any]:
+    """Describe fixed local scheduler locations without reading task definitions."""
+
+    system = platform.system()
+    if system != "Linux":
+        return {"supported": False, "platform": system, "reason": "linux_only"}
+
+    cron_entries, cron_sources, cron_truncated = _fixed_schedule_entries(
+        CRON_PATHS, MAX_SCHEDULED_ITEMS
+    )
+    remaining = max(0, MAX_SCHEDULED_ITEMS - len(cron_entries))
+    timer_entries: list[dict[str, Any]] = []
+    timer_sources: list[str] = []
+    timer_truncated = False
+    if remaining:
+        timer_entries, timer_sources, timer_truncated = _fixed_directory_entries(
+            SYSTEMD_SERVICE_DIRS,
+            limit=remaining,
+            suffixes=(".timer",),
+            kind="systemd_timer",
+        )
+    elif any(path.is_dir() for path in SYSTEMD_SERVICE_DIRS):
+        timer_truncated = True
+    entries = cron_entries + timer_entries
+    sources = sorted(set(cron_sources + timer_sources))
+    return {
+        "supported": bool(sources),
+        "platform": system,
+        "activities": entries,
+        "sources": sources,
+        "limit": MAX_SCHEDULED_ITEMS,
+        "truncated": cron_truncated or timer_truncated,
+        "definitions_collected": False,
+        "commands_collected": False,
+    }
+
+
+def get_privilege_enumeration(_: dict[str, Any]) -> dict[str, Any]:
+    """Summarize the current process privilege boundary without attempting escalation."""
+
+    identity = (
+        get_linux_identity({})
+        if platform.system() == "Linux"
+        else {"supported": True, **get_security_context({})}
+    )
+    return {
+        "supported": True,
+        "platform": platform.system(),
+        "scope": "current_process_and_user",
+        "identity": identity,
+        "groups": get_group_membership({}),
+        "capabilities": get_linux_capabilities({}),
+        "privilege_escalation_attempted": False,
+        "credential_material_collected": False,
+        "policy_files_read": False,
+    }
+
+
+def get_network_overview(_: dict[str, Any]) -> dict[str, Any]:
+    """Aggregate passive local network state with fixed collection limits."""
+
+    return {
+        "supported": True,
+        "scope": "local_host_only",
+        "active_network_probing": False,
+        "dns_resolution_performed": False,
+        "interfaces": get_network_interfaces({}),
+        "routes": get_route_table({}),
+        "listening_ports": get_listening_ports({"limit": 100}),
+        "connections": get_network_connections({"limit": 100}),
+    }
+
+
+def get_host_recon(_: dict[str, Any]) -> dict[str, Any]:
+    """Return a bounded passive overview suitable for a controlled lab host."""
+
+    return {
+        "supported": True,
+        "scope": "local_host_only",
+        "active_network_probing": False,
+        "credential_material_collected": False,
+        "arbitrary_paths_accepted": False,
+        "system": get_system_info({}),
+        "kernel": get_linux_kernel_info({}),
+        "uptime": get_uptime({}),
+        "privileges": get_privilege_enumeration({}),
+        "network": get_network_overview({}),
+        "mounts": get_linux_mounts({}),
+        "services": get_service_overview({}),
+        "scheduled_activity": get_scheduled_activity_overview({}),
+        "environment": get_safe_environment_overview({}),
     }
 
 
@@ -493,6 +852,223 @@ def ping(parameters: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _bounded_linux_status_fields(path: Path) -> tuple[dict[str, str], bool]:
+    wanted = {
+        "CapInh",
+        "CapPrm",
+        "CapEff",
+        "CapBnd",
+        "CapAmb",
+        "NoNewPrivs",
+        "Seccomp",
+    }
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_LOCAL_FILE_BYTES + 1)
+    except OSError:
+        return {}, False
+    truncated = len(raw) > MAX_LOCAL_FILE_BYTES
+    fields: dict[str, str] = {}
+    for line in raw[:MAX_LOCAL_FILE_BYTES].decode("utf-8", errors="replace").splitlines():
+        key, separator, value = line.partition(":")
+        if separator and key in wanted:
+            fields[key] = value.strip()[:64]
+    return fields, truncated
+
+
+def _current_group_ids() -> tuple[list[int], bool]:
+    if not hasattr(os, "getgroups"):
+        return [], False
+    try:
+        raw_group_ids = sorted(set(os.getgroups()))
+    except OSError:
+        return [], False
+    return raw_group_ids[:MAX_GROUPS], len(raw_group_ids) > MAX_GROUPS
+
+
+def _capability_names(mask: str | None) -> list[str]:
+    if mask is None:
+        return []
+    try:
+        value = int(mask, 16)
+    except ValueError:
+        return []
+    return [name for bit, name in enumerate(LINUX_CAPABILITY_NAMES) if value & (1 << bit)]
+
+
+def _optional_flag(value: str | None) -> bool | None:
+    if value == "0":
+        return False
+    if value == "1":
+        return True
+    return None
+
+
+def _optional_integer(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _redacted_mount_device(value: object) -> str | None:
+    device = str(value)[:512]
+    if not device:
+        return None
+    scheme_index = device.find("://")
+    if scheme_index >= 0:
+        authority_start = scheme_index + 3
+        at_index = device.find("@", authority_start)
+        if at_index >= authority_start:
+            return f"{device[:authority_start]}[redacted]{device[at_index:]}"
+    if device.startswith("//"):
+        at_index = device.find("@", 2)
+        if at_index >= 2:
+            return f"//[redacted]{device[at_index:]}"
+    return device
+
+
+def _windows_service_overview() -> dict[str, Any]:
+    iterator_factory = getattr(psutil, "win_service_iter", None)
+    if not callable(iterator_factory):
+        return {
+            "supported": False,
+            "platform": "Windows",
+            "reason": "windows_service_api_unavailable",
+        }
+    services: list[dict[str, Any]] = []
+    try:
+        iterator = iterator_factory()
+        for service in iterator:
+            try:
+                info = service.as_dict()
+            except (OSError, psutil.Error):
+                continue
+            services.append(
+                {
+                    "name": _bounded_text(info.get("name"), 255),
+                    "display_name": _bounded_text(info.get("display_name"), 255),
+                    "status": _bounded_text(info.get("status"), 64),
+                    "start_type": _bounded_text(info.get("start_type"), 64),
+                }
+            )
+            if len(services) > MAX_SERVICES:
+                break
+    except (OSError, psutil.Error):
+        return {
+            "supported": False,
+            "platform": "Windows",
+            "reason": "windows_service_query_failed",
+        }
+    services.sort(key=lambda item: (item["name"] or "").casefold())
+    return {
+        "supported": True,
+        "platform": "Windows",
+        "manager": "windows_service_api",
+        "services": services[:MAX_SERVICES],
+        "limit": MAX_SERVICES,
+        "truncated": len(services) > MAX_SERVICES,
+        "status_available": True,
+        "service_commands_collected": False,
+    }
+
+
+def _fixed_directory_entries(
+    roots: Iterable[Path],
+    *,
+    limit: int,
+    suffixes: tuple[str, ...] | None,
+    kind: str,
+) -> tuple[list[dict[str, Any]], list[str], bool]:
+    entries: list[dict[str, Any]] = []
+    sources: list[str] = []
+    seen_names: set[str] = set()
+    scanned = 0
+    truncated = False
+    for root in roots:
+        if len(entries) > limit or scanned >= MAX_DIRECTORY_ENTRIES_SCANNED:
+            truncated = True
+            break
+        try:
+            if not root.is_dir():
+                continue
+            iterator = os.scandir(root)
+        except OSError:
+            continue
+        sources.append(str(root))
+        with iterator:
+            for entry in iterator:
+                if scanned >= MAX_DIRECTORY_ENTRIES_SCANNED:
+                    truncated = True
+                    break
+                scanned += 1
+                name = entry.name[:255]
+                if suffixes is not None and not name.casefold().endswith(suffixes):
+                    continue
+                if name in seen_names:
+                    continue
+                seen_names.add(name)
+                try:
+                    is_symlink: bool | None = entry.is_symlink()
+                except OSError:
+                    is_symlink = None
+                entries.append(
+                    {
+                        "name": name,
+                        "kind": kind,
+                        "source": str(root),
+                        "is_symlink": is_symlink,
+                    }
+                )
+                if len(entries) > limit:
+                    truncated = True
+                    break
+    entries.sort(key=lambda item: str(item["name"]).casefold())
+    return entries[:limit], sources, truncated
+
+
+def _fixed_schedule_entries(
+    paths: Iterable[Path], limit: int
+) -> tuple[list[dict[str, Any]], list[str], bool]:
+    entries: list[dict[str, Any]] = []
+    sources: list[str] = []
+    directory_paths: list[Path] = []
+    for path in paths:
+        try:
+            if path.is_file():
+                sources.append(str(path))
+                entries.append(
+                    {
+                        "name": path.name[:255],
+                        "kind": "cron_file",
+                        "source": str(path.parent),
+                        "is_symlink": path.is_symlink(),
+                    }
+                )
+            elif path.is_dir():
+                directory_paths.append(path)
+        except OSError:
+            continue
+        if len(entries) > limit:
+            return entries[:limit], sources, True
+
+    remaining = max(0, limit - len(entries))
+    if remaining == 0:
+        return entries[:limit], sources, bool(directory_paths)
+    directory_entries, directory_sources, truncated = _fixed_directory_entries(
+        directory_paths,
+        limit=remaining,
+        suffixes=None,
+        kind="cron_entry",
+    )
+    entries.extend(directory_entries)
+    sources.extend(directory_sources)
+    entries.sort(key=lambda item: (str(item["kind"]), str(item["name"]).casefold()))
+    return entries[:limit], sources, truncated
+
+
 def _platform_software(limit: int) -> Iterable[dict[str, str | None]]:
     system = platform.system()
     if system == "Windows":
@@ -562,17 +1138,17 @@ def _windows_software(limit: int) -> Iterable[dict[str, str | None]]:
         r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
     )
     yielded = 0
-    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):  # type: ignore[attr-defined]
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
         for registry_path in paths:
             try:
-                root = winreg.OpenKey(hive, registry_path)  # type: ignore[attr-defined]
+                root = winreg.OpenKey(hive, registry_path)
             except OSError:
                 continue
             with root:
-                for index in range(winreg.QueryInfoKey(root)[0]):  # type: ignore[attr-defined]
+                for index in range(winreg.QueryInfoKey(root)[0]):
                     try:
-                        subkey_name = winreg.EnumKey(root, index)  # type: ignore[attr-defined]
-                        subkey = winreg.OpenKey(root, subkey_name)  # type: ignore[attr-defined]
+                        subkey_name = winreg.EnumKey(root, index)
+                        subkey = winreg.OpenKey(root, subkey_name)
                         with subkey:
                             name = _registry_value(winreg, subkey, "DisplayName")
                             version = _registry_value(winreg, subkey, "DisplayVersion")

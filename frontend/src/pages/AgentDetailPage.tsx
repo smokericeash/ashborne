@@ -541,9 +541,9 @@ function useAgentData(id: string, revision: number) {
 export function AgentDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { revision } = useLive();
+  const { agentsRevision, tasksRevision } = useLive();
   const { notify } = useToast();
-  const resource = useAgentData(id, revision);
+  const resource = useAgentData(id, agentsRevision + tasksRevision);
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

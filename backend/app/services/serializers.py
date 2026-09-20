@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy import inspect
 
-from app.models import Agent, AuditEvent, Task
-from app.schemas import AgentResponse, AuditResponse, TaskResponse
+from app.models import Agent, AuditEvent, Task, TaskStatus
+from app.schemas import AgentResponse, AuditResponse, BulkOperationResponse, BulkOperationSummary, TaskResponse
 
 
 def agent_response(agent: Agent, status=None) -> AgentResponse:
@@ -34,6 +34,7 @@ def task_response(task: Task) -> TaskResponse:
     return TaskResponse(
         id=task.id,
         agent_id=task.agent_id,
+        bulk_operation_id=task.bulk_operation_id,
         agent_name=agent.name if agent else None,
         task_type=task.task_type,
         parameters=task.parameters or {},
@@ -49,6 +50,42 @@ def task_response(task: Task) -> TaskResponse:
         result=record.result if record else None,
         error_message=record.error_message if record else None,
     )
+
+
+def _bulk_operation_data(tasks: list[Task]) -> dict:
+    if not tasks or tasks[0].bulk_operation_id is None:
+        raise ValueError("bulk operation requires at least one grouped task")
+    first = min(tasks, key=lambda item: item.created_at)
+    operation_id = first.bulk_operation_id
+    if any(task.bulk_operation_id != operation_id for task in tasks):
+        raise ValueError("tasks do not belong to one bulk operation")
+    if any(task.task_type != first.task_type or task.parameters != first.parameters for task in tasks):
+        raise ValueError("bulk operation tasks have inconsistent configuration")
+    unloaded = inspect(first).unloaded
+    requested_by = None if "requested_by" in unloaded else first.requested_by
+    counts = {status: 0 for status in TaskStatus}
+    for task in tasks:
+        counts[task.status] += 1
+    return {
+        "bulk_operation_id": operation_id,
+        "task_type": first.task_type,
+        "parameters": first.parameters or {},
+        "requested_by_id": first.requested_by_id,
+        "requested_by": requested_by.display_name if requested_by else None,
+        "requested_by_email": requested_by.email if requested_by else None,
+        "created_at": first.created_at,
+        "target_count": len(tasks),
+        "status_counts": counts,
+    }
+
+
+def bulk_operation_summary(tasks: list[Task]) -> BulkOperationSummary:
+    return BulkOperationSummary(**_bulk_operation_data(tasks))
+
+
+def bulk_operation_response(tasks: list[Task]) -> BulkOperationResponse:
+    ordered = sorted(tasks, key=lambda item: ((item.agent.name if item.agent else "").casefold(), item.id))
+    return BulkOperationResponse(**_bulk_operation_data(ordered), tasks=[task_response(task) for task in ordered])
 
 
 def audit_response(

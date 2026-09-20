@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "../context/useAuth";
 import { LiveContext } from "../context/useLive";
+import { HostSelectionProvider } from "../context/HostSelectionContext";
 import { ToastContext } from "../context/useToast";
 import type { User } from "../types";
 
@@ -70,10 +71,18 @@ export function renderWithContexts(
     <MemoryRouter initialEntries={[route]}>
       <AuthContext.Provider value={auth}>
         <LiveContext.Provider
-          value={{ connected, lastEvent: null, revision: 0 }}
+          value={{
+            connected,
+            lastEvent: null,
+            revision: 0,
+            agentsRevision: 0,
+            tasksRevision: 0,
+            auditRevision: 0,
+            dashboardRevision: 0,
+          }}
         >
           <ToastContext.Provider value={{ notify: vi.fn() }}>
-            {ui}
+            <HostSelectionProvider>{ui}</HostSelectionProvider>
           </ToastContext.Provider>
         </LiveContext.Provider>
       </AuthContext.Provider>

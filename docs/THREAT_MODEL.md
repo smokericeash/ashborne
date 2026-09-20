@@ -21,6 +21,9 @@ ASHBORNE manages visible lab agents only on systems the operator is authorized t
 | Agent impersonation | High-entropy per-agent credential, hash at rest, TLS, agent/route ownership checks | Compromised endpoint can act as that endpoint until revoked |
 | Arbitrary code execution through tasks | Closed enum, typed schemas, no command field, server and agent validation, dedicated handlers, result caps | A handler-library vulnerability remains possible; sandbox/containerize agents where appropriate |
 | Out-of-scope operator action | Per-task authorization confirmation, target identity in the UI, RBAC, immutable actor/target audit metadata | Confirmation is not a substitute for written authorization or network enforcement |
+| Bulk action targets the wrong hosts | Explicit selected-host review, strict scope confirmation, one independent task and audit trail per host, grouping ID used only for display | Operators must verify the reviewed target list before dispatch; a bulk ID never grants authority |
+| Operator-console command injection | Exact alias parser maps recognized text to closed typed actions; unsupported input is rejected; no shell or interpreter exists | New aliases require the same task allowlist and handler review as GUI actions |
+| Secret disclosure through environment enumeration | Environment names only, bounded output, denylist for secret-bearing names, no environment values returned | Variable names can still reveal installed tooling; use only on authorized lab hosts |
 | Privilege escalation through API | Deny-by-default RBAC dependencies, server-side checks, tests, audit | Application/database administrator remains powerful; separate duties externally |
 | Task replay or invalid transition | Transactional claims, ownership and current-state checks, terminal-state immutability | Network retry ambiguity; clients use task IDs/idempotent reads |
 | Telemetry poisoning | Schema/range/size validation, server receipt time, authenticated identity | An owned agent can lie about its host; telemetry is observational, not attestation |
@@ -35,4 +38,4 @@ ASHBORNE does not claim to protect a fully compromised server/database administr
 
 ## Security review triggers
 
-Require threat-model and security-test updates when adding a task handler, authentication method, externally reachable service, agent auto-update mechanism, file collection, multi-tenancy, third-party integration, or a data-export path.
+Require threat-model and security-test updates when adding a task handler, console alias, authentication method, externally reachable service, agent auto-update mechanism, file collection, multi-tenancy, third-party integration, or a data-export path.

@@ -126,25 +126,57 @@ export const TASK_TYPES = [
   "LISTENING_PORTS",
   "AGENT_HEALTH",
   "PING",
+  "LINUX_KERNEL_INFO",
+  "LINUX_IDENTITY",
+  "GROUP_MEMBERSHIP",
+  "LINUX_CAPABILITIES",
+  "LINUX_MOUNTS",
+  "SAFE_ENVIRONMENT_OVERVIEW",
+  "SERVICE_OVERVIEW",
+  "SCHEDULED_ACTIVITY_OVERVIEW",
+  "PRIVILEGE_ENUMERATION",
+  "NETWORK_OVERVIEW",
+  "HOST_RECON",
 ] as const;
 export type TaskType = (typeof TASK_TYPES)[number];
 
 export const TASK_CATEGORIES = {
-  Recon: ["QUICK_RECON", "SYSTEM_INFO", "HOSTNAME", "CURRENT_USER", "UPTIME"],
+  Recon: [
+    "QUICK_RECON",
+    "HOST_RECON",
+    "SYSTEM_INFO",
+    "HOSTNAME",
+    "CURRENT_USER",
+    "UPTIME",
+  ],
   "Host Enumeration": [
     "CPU_INFO",
     "MEMORY_USAGE",
     "DISK_USAGE",
     "PROCESS_INVENTORY",
     "INSTALLED_SOFTWARE",
+    "LINUX_KERNEL_INFO",
+    "SERVICE_OVERVIEW",
+    "SCHEDULED_ACTIVITY_OVERVIEW",
   ],
-  "Privilege Enumeration": ["SECURITY_CONTEXT"],
-  Files: ["FILE_SYSTEM_OVERVIEW"],
+  "Privilege Enumeration": [
+    "SECURITY_CONTEXT",
+    "LINUX_IDENTITY",
+    "GROUP_MEMBERSHIP",
+    "LINUX_CAPABILITIES",
+    "PRIVILEGE_ENUMERATION",
+  ],
+  Files: [
+    "FILE_SYSTEM_OVERVIEW",
+    "LINUX_MOUNTS",
+    "SAFE_ENVIRONMENT_OVERVIEW",
+  ],
   Network: [
     "NETWORK_INTERFACES",
     "NETWORK_CONNECTIONS",
     "ROUTE_TABLE",
     "LISTENING_PORTS",
+    "NETWORK_OVERVIEW",
   ],
   "Agent Control": ["AGENT_HEALTH", "PING"],
 } as const satisfies Record<string, readonly TaskType[]>;
@@ -174,6 +206,21 @@ export const TASK_DESCRIPTIONS: Record<TaskType, string> = {
   LISTENING_PORTS: "List local listening TCP and UDP endpoints.",
   AGENT_HEALTH: "Report agent resource health and runtime state.",
   PING: "Verify the authenticated task round trip.",
+  LINUX_KERNEL_INFO: "Report bounded local kernel and platform metadata.",
+  LINUX_IDENTITY: "Report local numeric identity and account metadata.",
+  GROUP_MEMBERSHIP: "List bounded local group membership for the agent identity.",
+  LINUX_CAPABILITIES: "Report local Linux capability masks without changing them.",
+  LINUX_MOUNTS: "List bounded local mount metadata without reading file contents.",
+  SAFE_ENVIRONMENT_OVERVIEW:
+    "List safe environment variable names while filtering secret-bearing names and all values.",
+  SERVICE_OVERVIEW: "List bounded local service state without controlling services.",
+  SCHEDULED_ACTIVITY_OVERVIEW:
+    "Summarize bounded scheduled-activity metadata without modifying jobs.",
+  PRIVILEGE_ENUMERATION:
+    "Combine read-only local identity, group, and capability observations.",
+  NETWORK_OVERVIEW:
+    "Combine bounded interface, route, listener, and connection observations.",
+  HOST_RECON: "Collect a bounded host-focused lab reconnaissance summary.",
 };
 
 export const TASK_CATEGORY_BY_TYPE = Object.fromEntries(
@@ -209,6 +256,24 @@ export interface AshborneTask {
   status: TaskStatus;
   result?: unknown;
   error_message?: string | null;
+  bulk_operation_id?: string | null;
+  audit_events?: AuditEvent[];
+}
+
+export interface BulkOperationSummary {
+  bulk_operation_id: string;
+  task_type: TaskType;
+  parameters: Record<string, unknown>;
+  requested_by_id?: string | null;
+  requested_by?: string | null;
+  requested_by_email?: string | null;
+  created_at: string;
+  target_count: number;
+  status_counts: Record<TaskStatus, number>;
+}
+
+export interface BulkOperation extends BulkOperationSummary {
+  tasks: AshborneTask[];
 }
 
 export const AUDIT_EVENT_TYPES = [

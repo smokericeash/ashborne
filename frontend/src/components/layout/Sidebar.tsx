@@ -4,7 +4,7 @@ import {
   Gauge,
   Settings,
   ShieldCheck,
-  Users,
+  SquareTerminal,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -17,8 +17,8 @@ const navigation = [
   { label: "Command Center", to: "/dashboard", icon: Gauge },
   { label: "Lab Hosts", to: "/agents", icon: ShieldCheck },
   { label: "Tasks", to: "/tasks", icon: ClipboardList },
-  { label: "Timeline / Audit", to: "/audit", icon: FileSearch },
-  { label: "Users", to: "/users", icon: Users, administratorOnly: true },
+  { label: "Operator Console", to: "/console", icon: SquareTerminal },
+  { label: "Audit", to: "/audit", icon: FileSearch },
   {
     label: "Settings",
     to: "/settings",

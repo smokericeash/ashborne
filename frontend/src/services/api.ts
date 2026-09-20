@@ -11,6 +11,9 @@ import type {
   Role,
   TaskType,
   User,
+  BulkOperation,
+  BulkOperationSummary,
+  TaskStatus,
 } from "../types";
 import { tokenStore } from "./tokenStore";
 
@@ -90,7 +93,52 @@ export function normalizeTask(raw: any): AshborneTask {
       raw?.requesting_user_email ??
       (typeof requestedBy === "object" ? requestedBy?.email : null),
     created_at: raw?.created_at,
+    bulk_operation_id: raw?.bulk_operation_id ?? null,
   } as AshborneTask;
+}
+
+function emptyStatusCounts(): Record<TaskStatus, number> {
+  return {
+    QUEUED: 0,
+    DISPATCHED: 0,
+    RUNNING: 0,
+    SUCCESS: 0,
+    FAILED: 0,
+    CANCELLED: 0,
+    EXPIRED: 0,
+  };
+}
+
+export function normalizeBulkOperation(raw: any): BulkOperation {
+  const tasks = Array.isArray(raw?.tasks) ? raw.tasks.map(normalizeTask) : [];
+  return {
+    ...raw,
+    bulk_operation_id: String(raw?.bulk_operation_id ?? raw?.id ?? ""),
+    task_type: raw?.task_type,
+    parameters: asRecord(raw?.parameters) ?? {},
+    created_at: String(raw?.created_at ?? ""),
+    target_count: Number(raw?.target_count ?? tasks.length),
+    status_counts: {
+      ...emptyStatusCounts(),
+      ...(asRecord(raw?.status_counts) ?? {}),
+    },
+    tasks,
+  } as BulkOperation;
+}
+
+function normalizeBulkOperationSummary(raw: any): BulkOperationSummary {
+  const operation = normalizeBulkOperation(raw);
+  return {
+    bulk_operation_id: operation.bulk_operation_id,
+    task_type: operation.task_type,
+    parameters: operation.parameters,
+    requested_by_id: operation.requested_by_id,
+    requested_by: operation.requested_by,
+    requested_by_email: operation.requested_by_email,
+    created_at: operation.created_at,
+    target_count: operation.target_count,
+    status_counts: operation.status_counts,
+  };
 }
 
 function asArray<T>(value: unknown, keys: string[]): T[] | undefined {
@@ -570,6 +618,47 @@ export const api = {
       request<any>(`/tasks/${encodeURIComponent(id)}/cancel`, {
         method: "POST",
       }).then(normalizeTask),
+    bulkCreate: (
+      agentIds: string[],
+      taskType: TaskType,
+      authorizedScopeConfirmed: boolean,
+      parameters: Record<string, unknown> = {},
+    ) =>
+      request<any>("/tasks/bulk", {
+        method: "POST",
+        body: {
+          agent_ids: agentIds,
+          task_type: taskType,
+          parameters,
+          authorized_scope_confirmed: authorizedScopeConfirmed,
+        },
+      }).then(normalizeBulkOperation),
+    bulkOperations: (params: { skip?: number; limit?: number } = {}) =>
+      request<any>(`/tasks/bulk-operations${query(params)}`).then((value) =>
+        paginated(value, normalizeBulkOperationSummary),
+      ),
+    bulkOperation: (id: string) =>
+      request<any>(`/tasks/bulk-operations/${encodeURIComponent(id)}`).then(
+        normalizeBulkOperation,
+      ),
+    retryBulkFailed: (id: string, authorizedScopeConfirmed: boolean) =>
+      request<any>(
+        `/tasks/bulk-operations/${encodeURIComponent(id)}/retry-failed`,
+        {
+          method: "POST",
+          body: { authorized_scope_confirmed: authorizedScopeConfirmed },
+        },
+      ).then(normalizeBulkOperation),
+    cancelBulkQueued: (id: string) =>
+      request<any>(
+        `/tasks/bulk-operations/${encodeURIComponent(id)}/cancel-queued`,
+        { method: "POST" },
+      ).then(normalizeBulkOperation),
+    rerunBulk: (id: string, authorizedScopeConfirmed: boolean) =>
+      request<any>(`/tasks/bulk-operations/${encodeURIComponent(id)}/rerun`, {
+        method: "POST",
+        body: { authorized_scope_confirmed: authorizedScopeConfirmed },
+      }).then(normalizeBulkOperation),
   },
   audit: {
     list: (params: {

@@ -15,7 +15,7 @@ Use `Authorization: Bearer <access-token>` on management requests. Do not place 
 | Capability | Administrator | Operator | Viewer |
 |---|:---:|:---:|:---:|
 | View dashboard, agents, tasks | ✓ | ✓ | ✓ |
-| Create authorized typed task | ✓ | ✓ | — |
+| Create authorized single/bulk typed task | ✓ | ✓ | — |
 | View audit | ✓ | ✓ | ✓ |
 | Generate/revoke enrollment token | ✓ | — | — |
 | Remove agent | ✓ | — | — |
@@ -50,6 +50,28 @@ QUEUED ──> DISPATCHED ──> RUNNING ──> SUCCESS
 ```
 
 Result bodies are JSON objects with a completion status and either bounded structured data or a sanitized error. Results are size-limited by both agent and API. Retrying an identical completion is handled safely or rejected without changing an existing terminal result.
+
+### Bulk operations
+
+`POST /api/v1/tasks/bulk` accepts a unique, bounded `agent_ids` list plus the
+normal typed-task fields and `authorized_scope_confirmed: true`. It creates one
+ordinary task per agent in one transaction and returns a presentation-only
+`bulk_operation_id`. The grouping identifier does not change authorization,
+ownership, dispatch, result, or audit semantics.
+
+- `GET /api/v1/tasks/bulk-operations` lists grouped operation summaries.
+- `GET /api/v1/tasks/bulk-operations/{id}` returns the independent target tasks.
+- `POST .../{id}/retry-failed` creates a new operation containing only failed targets.
+- `POST .../{id}/rerun` creates a new operation for all original targets.
+- `POST .../{id}/cancel-queued` cancels only tasks that remain `QUEUED`.
+
+Retry and rerun requests require a fresh authorized-scope confirmation. Every
+created target task receives its own `TASK_CREATED` audit event containing both
+task and bulk IDs; group actions also receive a bulk-operation audit event.
+
+The browser Operator Console never sends command text to the API. Its exact
+alias parser resolves supported input to a `task_type` and typed parameters,
+then uses the same single/bulk endpoints as the graphical controls.
 
 ## Pagination, filtering, and errors
 

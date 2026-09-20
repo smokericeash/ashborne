@@ -4,6 +4,17 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Added
+
+- Multi-host selection and bulk operations that retain an independent task, lifecycle, result, and audit trail for every target.
+- Typed Operator Console aliases with history, autocomplete, host selection controls, and explicit scope confirmation.
+- Structured summary, raw, timeline, and audit result views plus retry-failed, cancel-queued, rerun, copy, and JSON export workflows.
+- Bounded Linux identity, kernel, capability, mount, environment-name, service, scheduled-activity, privilege, network, and host-recon observations.
+
+### Changed
+
+- Simplified Command Center/navigation and reduced the frontend render and initial-loading footprint through route splitting and memoized data transforms.
+
 ### Planned
 
 - External identity-provider integration and WebAuthn.

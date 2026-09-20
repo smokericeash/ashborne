@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, event
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.core.database import Base
@@ -50,6 +50,17 @@ class TaskType(enum.StrEnum):
     LISTENING_PORTS = "LISTENING_PORTS"
     AGENT_HEALTH = "AGENT_HEALTH"
     PING = "PING"
+    LINUX_KERNEL_INFO = "LINUX_KERNEL_INFO"
+    LINUX_IDENTITY = "LINUX_IDENTITY"
+    GROUP_MEMBERSHIP = "GROUP_MEMBERSHIP"
+    LINUX_CAPABILITIES = "LINUX_CAPABILITIES"
+    LINUX_MOUNTS = "LINUX_MOUNTS"
+    SAFE_ENVIRONMENT_OVERVIEW = "SAFE_ENVIRONMENT_OVERVIEW"
+    SERVICE_OVERVIEW = "SERVICE_OVERVIEW"
+    SCHEDULED_ACTIVITY_OVERVIEW = "SCHEDULED_ACTIVITY_OVERVIEW"
+    PRIVILEGE_ENUMERATION = "PRIVILEGE_ENUMERATION"
+    NETWORK_OVERVIEW = "NETWORK_OVERVIEW"
+    HOST_RECON = "HOST_RECON"
 
 
 class TaskStatus(enum.StrEnum):
@@ -178,6 +189,7 @@ class Task(Base):
     __tablename__ = "tasks"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid4str)
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"), index=True, nullable=False)
+    bulk_operation_id: Mapped[str | None] = mapped_column(String(36), index=True)
     task_type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, native_enum=False, values_callable=enum_values), index=True, nullable=False
     )
@@ -199,7 +211,11 @@ class Task(Base):
     result_record: Mapped[TaskResult | None] = relationship(
         back_populates="task", uselist=False, cascade="all, delete-orphan"
     )
-    __table_args__ = (Index("ix_tasks_agent_status_created", "agent_id", "status", "created_at"),)
+    __table_args__ = (
+        Index("ix_tasks_agent_status_created", "agent_id", "status", "created_at"),
+        Index("ix_tasks_bulk_created", "bulk_operation_id", "created_at"),
+        UniqueConstraint("bulk_operation_id", "agent_id", name="uq_tasks_bulk_agent"),
+    )
 
 
 class TaskResult(Base):

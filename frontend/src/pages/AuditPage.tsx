@@ -104,7 +104,7 @@ function AuditRow({ event }: { event: AuditEvent }) {
 }
 
 export function AuditPage() {
-  const { revision } = useLive();
+  const { auditRevision } = useLive();
   const eventTypesResource = useResource(() => api.audit.eventTypes(), []);
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
@@ -147,7 +147,7 @@ export function AuditPage() {
       startTime,
       endTime,
       skip,
-      revision,
+      auditRevision,
     ],
   );
 

@@ -113,6 +113,13 @@ sequenceDiagram
 
 Invalid transitions, wrong-agent submissions, expired work, duplicate completion, command-like fields, and unknown task types are rejected.
 
+Bulk operations are a management-plane grouping, not a new execution primitive.
+The API assigns a `bulk_operation_id`, then creates one normal task row per
+selected agent. Dispatch, ownership checks, transitions, structured results,
+errors, and audit records continue to operate on those independent task IDs.
+Failed-only retry and full rerun create a new grouping so historical operations
+remain immutable and understandable.
+
 ## Data model
 
 ```mermaid
