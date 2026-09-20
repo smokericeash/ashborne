@@ -18,8 +18,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8,<9",
-  "pytest-cov>=5,<7",
+  "pytest>=8,<10",
+  "pytest-cov>=5,<8",
   "ruff>=0.9,<1",
   "mypy>=1.14,<3",
   "librt>=0.15,<1; python_version >= '3.13'",
