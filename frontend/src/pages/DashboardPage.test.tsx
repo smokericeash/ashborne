@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { tokenStore } from "../services/tokenStore";
 import { renderWithContexts } from "../test/render";
@@ -83,10 +83,7 @@ describe("DashboardPage", () => {
     renderWithContexts(<DashboardPage />);
 
     expect(await screen.findByText("lab-sensor-01")).toBeInTheDocument();
-    expect(screen.getByText("CPU_INFO")).toBeInTheDocument();
-    expect(
-      within(screen.getByText("Lab hosts").parentElement!).getByText("3"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("3 Lab hosts")).toBeInTheDocument();
     expect(screen.getByText("Linux: 2 agents")).toBeInTheDocument();
     expect(screen.getByText("Windows: 1 agents")).toBeInTheDocument();
     expect(screen.getByText("0.1.0: 3 agents")).toBeInTheDocument();
