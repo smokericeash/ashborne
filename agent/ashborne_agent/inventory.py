@@ -120,7 +120,7 @@ def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
         try:
             import ctypes
 
-            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())
+            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
         except (AttributeError, OSError):
             elevated = None
 
