@@ -44,7 +44,7 @@ jobs:
       ASHBORNE_REDIS_URL: redis://127.0.0.1:6379/15
       ASHBORNE_SECRET_KEY: ci_only_signing_key_at_least_64_characters_long_00000000000000000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -70,7 +70,7 @@ jobs:
   agent:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
