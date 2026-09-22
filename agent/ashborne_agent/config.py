@@ -68,11 +68,15 @@ class AgentConfig:
     request_timeout: float = 15.0
     ca_bundle: str | None = None
     allow_insecure_http: bool = False
+    kali_controller: bool = False
+    max_parallel_hosts: int = 10
     schema_version: int = 1
 
     def __post_init__(self) -> None:
         if not isinstance(self.allow_insecure_http, bool):
             raise ConfigError("allow_insecure_http must be a boolean")
+        if not isinstance(self.kali_controller, bool):
+            raise ConfigError("kali_controller must be a boolean")
         self.server_url = validate_server_url(
             self.server_url, allow_insecure_http=self.allow_insecure_http
         )
@@ -98,6 +102,12 @@ class AgentConfig:
         )
         self.poll_interval = _bounded_number("poll_interval", self.poll_interval, 1, 3600)
         self.request_timeout = _bounded_number("request_timeout", self.request_timeout, 1, 120)
+        if (
+            isinstance(self.max_parallel_hosts, bool)
+            or not isinstance(self.max_parallel_hosts, int)
+            or not 1 <= self.max_parallel_hosts <= 32
+        ):
+            raise ConfigError("max_parallel_hosts must be an integer between 1 and 32")
         if self.ca_bundle is not None and not isinstance(self.ca_bundle, str):
             raise ConfigError("ca_bundle must be a path string")
         if self.ca_bundle:
@@ -116,6 +126,8 @@ class AgentConfig:
         name: str | None = None,
         ca_bundle: str | None = None,
         allow_insecure_http: bool = False,
+        kali_controller: bool = False,
+        max_parallel_hosts: int = 10,
     ) -> AgentConfig:
         return cls(
             server_url=server_url,
@@ -123,6 +135,8 @@ class AgentConfig:
             name=(name or socket.gethostname())[:120],
             ca_bundle=ca_bundle,
             allow_insecure_http=allow_insecure_http,
+            kali_controller=kali_controller,
+            max_parallel_hosts=max_parallel_hosts,
         )
 
     @classmethod
@@ -179,6 +193,8 @@ class AgentConfig:
             "transport": "HTTPS verified" if self.server_url.startswith("https://") else "lab HTTP",
             "heartbeat_interval": self.heartbeat_interval,
             "poll_interval": self.poll_interval,
+            "kali_controller": self.kali_controller,
+            "max_parallel_hosts": self.max_parallel_hosts,
         }
 
 

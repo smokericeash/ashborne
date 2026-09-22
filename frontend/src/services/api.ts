@@ -105,6 +105,7 @@ function emptyStatusCounts(): Record<TaskStatus, number> {
     SUCCESS: 0,
     FAILED: 0,
     CANCELLED: 0,
+    TIMED_OUT: 0,
     EXPIRED: 0,
   };
 }
@@ -508,7 +509,9 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   retry?: boolean;
 }
 
-export async function request<T>(
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
+
+async function performRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
@@ -530,7 +533,7 @@ export async function request<T>(
 
   if (response.status === 401 && auth && retry) {
     const newToken = await refreshAccessToken();
-    if (newToken) return request<T>(path, { ...options, retry: false });
+    if (newToken) return performRequest<T>(path, { ...options, retry: false });
     invalidateSession();
   }
 
@@ -543,6 +546,31 @@ export async function request<T>(
     );
   }
   return responseBody as T;
+}
+
+export function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET" || options.body !== undefined || options.headers) {
+    return performRequest<T>(path, options);
+  }
+
+  const accessToken =
+    options.auth === false ? "public" : tokenStore.getAccess();
+  const key = `${accessToken ?? "anonymous"}:${path}`;
+  const existing = inFlightGetRequests.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const pending = performRequest<T>(path, options);
+  inFlightGetRequests.set(key, pending);
+  const clear = () => {
+    if (inFlightGetRequests.get(key) === pending)
+      inFlightGetRequests.delete(key);
+  };
+  void pending.then(clear, clear);
+  return pending;
 }
 
 export const api = {

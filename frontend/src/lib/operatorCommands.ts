@@ -1,5 +1,3 @@
-import type { TaskType } from "../types";
-
 export const LOCAL_COMMANDS = [
   "help",
   "clear",
@@ -9,60 +7,53 @@ export const LOCAL_COMMANDS = [
   "deselect",
   "tasks",
   "status",
+  "retry failed",
 ] as const;
 export type LocalOperatorCommand = (typeof LOCAL_COMMANDS)[number];
 
-const ACTION_ALIASES: Record<string, TaskType> = {
-  hostname: "HOSTNAME",
-  whoami: "CURRENT_USER",
-  id: "LINUX_IDENTITY",
-  uname: "LINUX_KERNEL_INFO",
-  "uname -a": "LINUX_KERNEL_INFO",
-  ps: "PROCESS_INVENTORY",
-  "ps aux": "PROCESS_INVENTORY",
-  "ps -aux": "PROCESS_INVENTORY",
-  "ip addr": "NETWORK_INTERFACES",
-  "ip address": "NETWORK_INTERFACES",
-  ifconfig: "NETWORK_INTERFACES",
-  "ip route": "ROUTE_TABLE",
-  route: "ROUTE_TABLE",
-  ss: "NETWORK_CONNECTIONS",
-  "ss -tulpn": "NETWORK_CONNECTIONS",
-  netstat: "NETWORK_CONNECTIONS",
-  "netstat -tulpn": "NETWORK_CONNECTIONS",
-  df: "DISK_USAGE",
-  "df -h": "DISK_USAGE",
-  mount: "LINUX_MOUNTS",
-  env: "SAFE_ENVIRONMENT_OVERVIEW",
-  "quick-recon": "QUICK_RECON",
-  "host-recon": "HOST_RECON",
-  "priv-enum": "PRIVILEGE_ENUMERATION",
-};
+const COMMON_OPERATIONS = [
+  "hostname",
+  "whoami",
+  "id",
+  "uname -a",
+  "ps aux",
+  "ip addr",
+  "ip route",
+  "ss -tulpn",
+  "df -h",
+  "mount",
+  "env",
+];
 
 export const OPERATOR_COMMANDS = [
   ...LOCAL_COMMANDS,
-  ...Object.keys(ACTION_ALIASES),
+  ...COMMON_OPERATIONS,
 ].sort();
 
 export type ParsedOperatorCommand =
   | { kind: "empty" }
   | { kind: "local"; command: LocalOperatorCommand }
-  | { kind: "action"; action: TaskType; command: string }
-  | { kind: "unsupported"; command: string };
+  | { kind: "operation"; command: string; executionMode: "ssh" | "local" };
 
 export function normalizeOperatorCommand(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 export function parseOperatorCommand(value: string): ParsedOperatorCommand {
-  const command = normalizeOperatorCommand(value);
-  if (!command) return { kind: "empty" };
-  if ((LOCAL_COMMANDS as readonly string[]).includes(command)) {
-    return { kind: "local", command: command as LocalOperatorCommand };
+  const raw = value.trim();
+  const normalized = normalizeOperatorCommand(raw);
+  if (!raw) return { kind: "empty" };
+  if ((LOCAL_COMMANDS as readonly string[]).includes(normalized)) {
+    return { kind: "local", command: normalized as LocalOperatorCommand };
   }
-  const action = ACTION_ALIASES[command];
-  if (action) return { kind: "action", action, command };
-  return { kind: "unsupported", command };
+  if (normalized.startsWith("kali:")) {
+    const separator = raw.indexOf(":");
+    const command = raw.slice(separator + 1).trim();
+    return command
+      ? { kind: "operation", command, executionMode: "local" }
+      : { kind: "empty" };
+  }
+  return { kind: "operation", command: raw, executionMode: "ssh" };
 }
 
 export function operatorCommandCompletions(value: string) {

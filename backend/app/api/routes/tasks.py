@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import any_user, get_current_agent, operator_user, pagination_limit
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.events import event_broker
 from app.core.time import ensure_utc, utcnow
@@ -37,7 +38,13 @@ from app.services.tasks import (
 from app.tasks import validate_task_parameters
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
-TERMINAL_STATUSES = {TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.EXPIRED}
+TERMINAL_STATUSES = {
+    TaskStatus.SUCCESS,
+    TaskStatus.FAILED,
+    TaskStatus.CANCELLED,
+    TaskStatus.TIMED_OUT,
+    TaskStatus.EXPIRED,
+}
 DISPATCH_LEASE_SECONDS = 60
 
 
@@ -78,6 +85,34 @@ async def _reject_expired_transition(db: AsyncSession, task: Task, request: Requ
     raise HTTPException(status_code=409, detail="task has expired")
 
 
+def _task_executor_id(task: Task) -> str:
+    return task.executor_agent_id or task.agent_id
+
+
+async def _resolve_kali_controller(db: AsyncSession) -> Agent:
+    configured_id = get_settings().kali_controller_agent_id
+    if configured_id:
+        controller = await db.get(Agent, configured_id)
+        candidates = [controller] if controller is not None else []
+    else:
+        agents = (
+            (await db.execute(select(Agent).where(Agent.removed_at.is_(None)))).scalars().all()
+        )
+        candidates = [agent for agent in agents if "kali-controller" in (agent.tags or [])]
+    candidates = [agent for agent in candidates if agent.removed_at is None]
+    if not candidates:
+        raise HTTPException(status_code=503, detail="Kali controller is not configured or enrolled")
+    if len(candidates) != 1:
+        raise HTTPException(
+            status_code=409,
+            detail="multiple Kali controllers are enrolled; configure ASHBORNE_KALI_CONTROLLER_AGENT_ID",
+        )
+    controller = candidates[0]
+    if "linux" not in controller.operating_system.casefold():
+        raise HTTPException(status_code=409, detail="Kali controller must be a Linux agent")
+    return controller
+
+
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     payload: TaskCreate,
@@ -93,9 +128,13 @@ async def create_task(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     settings = await read_settings(db)
+    controller = (
+        await _resolve_kali_controller(db) if payload.task_type == TaskType.KALI_OPERATION else None
+    )
     lifetime = payload.expires_in_seconds or settings.task_expiration_seconds
     task = Task(
         agent_id=agent.id,
+        executor_agent_id=controller.id if controller else None,
         task_type=payload.task_type,
         parameters=parameters,
         requested_by_id=actor.id,
@@ -155,6 +194,7 @@ async def _create_bulk_operation(
     agents: list[Agent],
     task_type: TaskType,
     parameters: dict[str, Any],
+    executor_agent_id: str | None,
     expires_in_seconds: int | None,
     audit_event_type: str,
     source_bulk_operation_id: str | None = None,
@@ -166,6 +206,7 @@ async def _create_bulk_operation(
         agents=agents,
         task_type=task_type,
         parameters=parameters,
+        executor_agent_id=executor_agent_id,
         actor=actor,
         lifetime_seconds=lifetime,
         request=request,
@@ -194,6 +235,9 @@ async def create_bulk_tasks(
         parameters = validate_task_parameters(payload.task_type, payload.parameters)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    controller = (
+        await _resolve_kali_controller(db) if payload.task_type == TaskType.KALI_OPERATION else None
+    )
     return await _create_bulk_operation(
         db=db,
         request=request,
@@ -201,6 +245,7 @@ async def create_bulk_tasks(
         agents=agents,
         task_type=payload.task_type,
         parameters=parameters,
+        executor_agent_id=controller.id if controller else None,
         expires_in_seconds=payload.expires_in_seconds,
         audit_event_type="BULK_OPERATION_CREATED",
     )
@@ -289,7 +334,8 @@ async def _rerun_bulk_targets(
     if not source_tasks:
         raise HTTPException(status_code=404, detail="bulk operation not found")
     _ensure_consistent_bulk_operation(source_tasks)
-    selected = [task for task in source_tasks if task.status == TaskStatus.FAILED] if failed_only else source_tasks
+    retryable = {TaskStatus.FAILED, TaskStatus.TIMED_OUT}
+    selected = [task for task in source_tasks if task.status in retryable] if failed_only else source_tasks
     if not selected:
         await db.commit()
         await publish_task_expirations(expired)
@@ -303,6 +349,9 @@ async def _rerun_bulk_targets(
         raise HTTPException(status_code=409, detail="bulk operation configuration is no longer allowlisted") from exc
     await db.commit()
     await publish_task_expirations(expired)
+    controller = (
+        await _resolve_kali_controller(db) if first.task_type == TaskType.KALI_OPERATION else None
+    )
     return await _create_bulk_operation(
         db=db,
         request=request,
@@ -310,6 +359,7 @@ async def _rerun_bulk_targets(
         agents=agents,
         task_type=first.task_type,
         parameters=parameters,
+        executor_agent_id=controller.id if controller else None,
         expires_in_seconds=payload.expires_in_seconds,
         audit_event_type="BULK_OPERATION_RETRIED" if failed_only else "BULK_OPERATION_RERUN",
         source_bulk_operation_id=bulk_operation_id,
@@ -504,8 +554,8 @@ async def start_task(
     agent: Agent = Depends(get_current_agent),
 ) -> TaskResponse:
     task = await _load_task(db, task_id, lock=True)
-    if task.agent_id != agent.id:
-        raise HTTPException(status_code=403, detail="task belongs to a different agent")
+    if _task_executor_id(task) != agent.id:
+        raise HTTPException(status_code=403, detail="task belongs to a different executor")
     await _reject_expired_transition(db, task, request)
     if task.status == TaskStatus.RUNNING:
         return task_response(task)
@@ -518,7 +568,11 @@ async def start_task(
         "TASK_STARTED",
         request=request,
         agent_id=agent.id,
-        metadata={"task_id": task.id, "bulk_operation_id": task.bulk_operation_id},
+        metadata={
+            "task_id": task.id,
+            "bulk_operation_id": task.bulk_operation_id,
+            "target_agent_id": task.agent_id,
+        },
     )
     await db.commit()
     task = await _load_task(db, task.id)
@@ -538,11 +592,11 @@ async def submit_result(
     agent: Agent = Depends(get_current_agent),
 ) -> TaskResponse:
     task = await _load_task(db, task_id, lock=True)
-    if task.agent_id != agent.id:
-        raise HTTPException(status_code=403, detail="task belongs to a different agent")
+    if _task_executor_id(task) != agent.id:
+        raise HTTPException(status_code=403, detail="task belongs to a different executor")
     await _reject_expired_transition(db, task, request)
     requested_status = TaskStatus(payload.status)
-    if task.status in {TaskStatus.SUCCESS, TaskStatus.FAILED}:
+    if task.status in {TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.TIMED_OUT}:
         if task.status == requested_status:
             return task_response(task)
         raise HTTPException(status_code=409, detail="task already has a different terminal result")
@@ -551,7 +605,13 @@ async def submit_result(
     task.status = requested_status
     task.completed_at = utcnow()
     task.result_record = TaskResult(result=payload.result, error_message=payload.error_message)
-    event_type = "TASK_COMPLETED" if requested_status == TaskStatus.SUCCESS else "TASK_FAILED"
+    event_type = (
+        "TASK_COMPLETED"
+        if requested_status == TaskStatus.SUCCESS
+        else "TASK_TIMED_OUT"
+        if requested_status == TaskStatus.TIMED_OUT
+        else "TASK_FAILED"
+    )
     await record_audit(
         db,
         event_type,
@@ -561,11 +621,18 @@ async def submit_result(
             "task_id": task.id,
             "task_type": task.task_type.value,
             "bulk_operation_id": task.bulk_operation_id,
+            "target_agent_id": task.agent_id,
         },
     )
     await db.commit()
     task = await _load_task(db, task.id)
-    event_name = "task.succeeded" if requested_status == TaskStatus.SUCCESS else "task.failed"
+    event_name = (
+        "task.succeeded"
+        if requested_status == TaskStatus.SUCCESS
+        else "task.timed_out"
+        if requested_status == TaskStatus.TIMED_OUT
+        else "task.failed"
+    )
     await event_broker.publish(
         event_name,
         {"task_id": task.id, "agent_id": task.agent_id, "bulk_operation_id": task.bulk_operation_id},
@@ -595,7 +662,14 @@ async def poll_tasks(
                 select(Task)
                 .options(selectinload(Task.result_record), selectinload(Task.agent), selectinload(Task.requested_by))
                 .where(
-                    Task.agent_id == agent.id,
+                    or_(
+                        Task.executor_agent_id == agent.id,
+                        and_(
+                            Task.executor_agent_id.is_(None),
+                            Task.agent_id == agent.id,
+                            Task.task_type != TaskType.KALI_OPERATION,
+                        ),
+                    ),
                     or_(
                         Task.status == TaskStatus.QUEUED,
                         and_(

@@ -61,6 +61,7 @@ class TaskType(enum.StrEnum):
     PRIVILEGE_ENUMERATION = "PRIVILEGE_ENUMERATION"
     NETWORK_OVERVIEW = "NETWORK_OVERVIEW"
     HOST_RECON = "HOST_RECON"
+    KALI_OPERATION = "KALI_OPERATION"
 
 
 class TaskStatus(enum.StrEnum):
@@ -70,6 +71,7 @@ class TaskStatus(enum.StrEnum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    TIMED_OUT = "TIMED_OUT"
     EXPIRED = "EXPIRED"
 
 
@@ -189,6 +191,9 @@ class Task(Base):
     __tablename__ = "tasks"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid4str)
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"), index=True, nullable=False)
+    executor_agent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("agents.id", ondelete="SET NULL"), index=True
+    )
     bulk_operation_id: Mapped[str | None] = mapped_column(String(36), index=True)
     task_type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, native_enum=False, values_callable=enum_values), index=True, nullable=False
@@ -206,13 +211,15 @@ class Task(Base):
         index=True,
         nullable=False,
     )
-    agent: Mapped[Agent] = relationship()
+    agent: Mapped[Agent] = relationship(foreign_keys=[agent_id])
+    executor_agent: Mapped[Agent | None] = relationship(foreign_keys=[executor_agent_id])
     requested_by: Mapped[User | None] = relationship()
     result_record: Mapped[TaskResult | None] = relationship(
         back_populates="task", uselist=False, cascade="all, delete-orphan"
     )
     __table_args__ = (
         Index("ix_tasks_agent_status_created", "agent_id", "status", "created_at"),
+        Index("ix_tasks_executor_status_created", "executor_agent_id", "status", "created_at"),
         Index("ix_tasks_bulk_created", "bulk_operation_id", "created_at"),
         UniqueConstraint("bulk_operation_id", "agent_id", name="uq_tasks_bulk_agent"),
     )

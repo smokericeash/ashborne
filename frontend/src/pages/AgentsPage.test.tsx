@@ -114,6 +114,7 @@ describe("AgentsPage", () => {
         SUCCESS: 0,
         FAILED: 0,
         CANCELLED: 0,
+        TIMED_OUT: 0,
         EXPIRED: 0,
       },
       tasks: [],
@@ -134,14 +135,7 @@ describe("AgentsPage", () => {
     ).toBeChecked();
 
     await user.click(screen.getByRole("button", { name: /run task/i }));
-    await user.click(
-      screen.getByRole("button", { name: "Review 2 targets" }),
-    );
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: "Confirm authorized scope for selected hosts",
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "Review 2 targets" }));
     await user.click(screen.getByRole("button", { name: "Run 2 tasks" }));
 
     await waitFor(() =>
@@ -153,7 +147,46 @@ describe("AgentsPage", () => {
       ),
     );
 
-    await user.click(screen.getByRole("button", { name: "Deselect all hosts" }));
+    await user.click(
+      screen.getByRole("button", { name: "Deselect all hosts" }),
+    );
     expect(screen.queryByText("2 hosts selected")).not.toBeInTheDocument();
+  });
+
+  it("refreshes persisted selection metadata from the live host page", async () => {
+    sessionStorage.setItem(
+      "ashborne.selected-hosts",
+      JSON.stringify([
+        {
+          id: zulu.id,
+          name: zulu.name,
+          hostname: zulu.hostname,
+          status: "OFFLINE",
+        },
+      ]),
+    );
+    vi.spyOn(api.agents, "list").mockResolvedValue({
+      items: [zulu],
+      total: 1,
+      skip: 0,
+      limit: 25,
+    });
+
+    renderWithContexts(<AgentsPage />);
+    await screen.findByText("Zulu sensor");
+
+    await waitFor(() => {
+      const persisted = JSON.parse(
+        sessionStorage.getItem("ashborne.selected-hosts") ?? "[]",
+      );
+      expect(persisted).toEqual([
+        {
+          id: zulu.id,
+          name: zulu.name,
+          hostname: zulu.hostname,
+          status: "ONLINE",
+        },
+      ]);
+    });
   });
 });

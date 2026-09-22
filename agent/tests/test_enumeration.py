@@ -261,6 +261,45 @@ def test_network_overview_is_passive_and_uses_fixed_limits(
     assert result["connections"]["limit"] == 100
 
 
+def test_system_info_includes_uptime(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        inventory,
+        "get_uptime",
+        lambda _: {"boot_time": "2026-09-20T00:00:00+00:00", "uptime_seconds": 900},
+    )
+
+    result = inventory.get_system_info({})
+
+    assert result["boot_time"] == "2026-09-20T00:00:00+00:00"
+    assert result["uptime_seconds"] == 900
+
+
+def test_process_inventory_includes_bounded_cpu_and_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = SimpleNamespace(
+        info={
+            "pid": 42,
+            "name": "ashborne-agent",
+            "username": "operator",
+            "status": "running",
+            "create_time": 1_700_000_000.0,
+            "cpu_percent": 12.34567,
+            "memory_percent": 6.78901,
+        }
+    )
+    monkeypatch.setattr(
+        inventory.psutil,
+        "process_iter",
+        lambda *, attrs, ad_value: [process],
+    )
+
+    result = inventory.get_process_inventory({"limit": 5})
+
+    assert result["processes"][0]["cpu_percent"] == 12.3457
+    assert result["processes"][0]["memory_percent"] == 6.789
+
+
 def test_privilege_enumeration_is_observational_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

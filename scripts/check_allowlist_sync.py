@@ -38,6 +38,7 @@ EXPECTED = {
     "PRIVILEGE_ENUMERATION",
     "NETWORK_OVERVIEW",
     "HOST_RECON",
+    "KALI_OPERATION",
 }
 
 
@@ -91,7 +92,7 @@ def main() -> int:
         "frontend": frontend_values(),
     }
     if all(values == EXPECTED for values in sources.values()):
-        print(f"ASHBORNE allowlist synchronized: {len(EXPECTED)} typed lab actions")
+        print(f"ASHBORNE operation types synchronized: {len(EXPECTED)}")
         return 0
     for name, values in sources.items():
         missing = sorted(EXPECTED - values)

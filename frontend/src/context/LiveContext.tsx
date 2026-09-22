@@ -63,7 +63,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         <TasksRevisionContext.Provider value={tasksRevision}>
           <AuditRevisionContext.Provider value={auditRevision}>
             <DashboardRevisionContext.Provider value={dashboardRevision}>
-              <LiveContext.Provider value={value}>{children}</LiveContext.Provider>
+              <LiveContext.Provider value={value}>
+                {children}
+              </LiveContext.Provider>
             </DashboardRevisionContext.Provider>
           </AuditRevisionContext.Provider>
         </TasksRevisionContext.Provider>

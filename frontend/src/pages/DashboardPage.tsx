@@ -17,10 +17,7 @@ import {
   Spinner,
   StatusBadge,
 } from "../components/ui";
-import {
-  useDashboardRevision,
-  useLiveConnection,
-} from "../context/useLive";
+import { useDashboardRevision, useLiveConnection } from "../context/useLive";
 import { useResource } from "../hooks/useResource";
 import { formatRelativeTime } from "../lib/utils";
 import { api } from "../services/api";
@@ -28,16 +25,13 @@ import { api } from "../services/api";
 export function DashboardPage() {
   const dashboardRevision = useDashboardRevision();
   const connected = useLiveConnection();
-  const resource = useResource(
-    async () => {
-      const [metrics, activity] = await Promise.all([
-        api.dashboard.metrics(),
-        api.dashboard.activity(),
-      ]);
-      return { metrics, activity };
-    },
-    [dashboardRevision],
-  );
+  const resource = useResource(async () => {
+    const [metrics, activity] = await Promise.all([
+      api.dashboard.metrics(),
+      api.dashboard.activity(),
+    ]);
+    return { metrics, activity };
+  }, [dashboardRevision]);
   const liveTasks = useMemo(
     () =>
       resource.data?.activity.recent_tasks.filter((task) =>
@@ -111,7 +105,9 @@ export function DashboardPage() {
                 <p className="text-[9px] font-bold uppercase tracking-[.16em] text-slate-600">
                   {card.label}
                 </p>
-                <p className={`mt-2 font-mono text-3xl font-semibold ${card.tone}`}>
+                <p
+                  className={`mt-2 font-mono text-3xl font-semibold ${card.tone}`}
+                >
                   {card.value}
                 </p>
                 <p className="mt-1 text-[10px] text-slate-600">{card.detail}</p>

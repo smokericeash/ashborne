@@ -31,6 +31,10 @@ class TaskSpec:
 
 
 TASK_SPECS: dict[str, TaskSpec] = {
+    "KALI_OPERATION": TaskSpec(
+        lambda _value: _controller_only(),
+        lambda value: _kali_parameters(value),
+    ),
     "QUICK_RECON": TaskSpec(inventory.get_quick_recon, lambda value: _no_parameters(value)),
     "SYSTEM_INFO": TaskSpec(inventory.get_system_info, lambda value: _no_parameters(value)),
     "HOSTNAME": TaskSpec(inventory.get_hostname, lambda value: _no_parameters(value)),
@@ -183,3 +187,27 @@ def _ping_parameters(value: object) -> dict[str, Any]:
     if message is not None and (not isinstance(message, str) or len(message) > 256):
         raise TaskValidationError("message must be a string of at most 256 characters")
     return {"message": message}
+
+
+def _kali_parameters(value: object) -> dict[str, Any]:
+    parameters = _object(value)
+    _reject_unknown(parameters, {"command", "execution_mode", "timeout_seconds"})
+    command = parameters.get("command")
+    if (
+        not isinstance(command, str)
+        or not command.strip()
+        or len(command) > 4096
+        or "\x00" in command
+    ):
+        raise TaskValidationError("command must be 1-4096 characters without NUL")
+    mode = parameters.get("execution_mode", "ssh")
+    if mode not in {"ssh", "local"}:
+        raise TaskValidationError("execution_mode must be ssh or local")
+    timeout = parameters.get("timeout_seconds", 120)
+    if isinstance(timeout, bool) or not isinstance(timeout, int) or not 1 <= timeout <= 900:
+        raise TaskValidationError("timeout_seconds must be an integer between 1 and 900")
+    return {"command": command, "execution_mode": mode, "timeout_seconds": timeout}
+
+
+def _controller_only() -> dict[str, Any]:
+    raise TaskValidationError("KALI_OPERATION requires an enrolled Kali controller")

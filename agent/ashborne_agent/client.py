@@ -244,6 +244,7 @@ def enrollment_identity(config: AgentConfig) -> dict[str, Any]:
         "architecture": (uname.machine or "unknown")[:64],
         "agent_version": __version__,
         "ip_address": primary_ip_address(),
+        "tags": ["kali-controller"] if config.kali_controller else [],
     }
 
 

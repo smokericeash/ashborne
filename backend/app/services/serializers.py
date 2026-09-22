@@ -31,9 +31,19 @@ def task_response(task: Task) -> TaskResponse:
     unloaded = inspect(task).unloaded
     agent = None if "agent" in unloaded else task.agent
     requested_by = None if "requested_by" in unloaded else task.requested_by
+    if agent is None:
+        raise ValueError("task response requires the target agent relationship")
     return TaskResponse(
         id=task.id,
         agent_id=task.agent_id,
+        executor_agent_id=task.executor_agent_id,
+        target={
+            "id": agent.id,
+            "name": agent.name,
+            "hostname": agent.hostname,
+            "username": agent.username,
+            "ip_address": agent.ip_address,
+        },
         bulk_operation_id=task.bulk_operation_id,
         agent_name=agent.name if agent else None,
         task_type=task.task_type,

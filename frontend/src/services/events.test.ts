@@ -29,6 +29,19 @@ describe("SSE event parsing", () => {
     expect(parseEventBlock(": keepalive")).toBeNull();
   });
 
+  it("does not open a stream when the subscriber is synchronously disposed", async () => {
+    vi.resetModules();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { subscribeToEvents } = await import("./events");
+
+    const unsubscribe = subscribeToEvents(vi.fn());
+    unsubscribe();
+    await Promise.resolve();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("refreshes an unauthorized stream and suppresses keepalive events", async () => {
     vi.resetModules();
     sessionStorage.setItem("ashborne.refresh_token", "refresh-stream");

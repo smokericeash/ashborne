@@ -1,15 +1,11 @@
-import { ArrowLeft, Play, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Play } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SelectedHost } from "../context/useHostSelection";
 import { useToast } from "../context/useToast";
 import { humanize } from "../lib/utils";
 import { api } from "../services/api";
-import {
-  TASK_CATEGORIES,
-  TASK_DESCRIPTIONS,
-  type TaskType,
-} from "../types";
+import { TASK_CATEGORIES, TASK_DESCRIPTIONS, type TaskType } from "../types";
 import { Button, Input, Modal, Select, StatusBadge } from "./ui";
 
 export function BulkTaskDialog({
@@ -25,7 +21,6 @@ export function BulkTaskDialog({
   const { notify } = useToast();
   const [taskType, setTaskType] = useState<TaskType>("QUICK_RECON");
   const [reviewing, setReviewing] = useState(false);
-  const [scopeConfirmed, setScopeConfirmed] = useState(false);
   const [limit, setLimit] = useState(200);
   const [allPartitions, setAllPartitions] = useState(false);
   const [pingMessage, setPingMessage] = useState("");
@@ -50,12 +45,11 @@ export function BulkTaskDialog({
   useEffect(() => {
     if (open) return;
     setReviewing(false);
-    setScopeConfirmed(false);
     setError("");
   }, [open]);
 
   const dispatch = async () => {
-    if (!scopeConfirmed || !hosts.length) return;
+    if (!hosts.length) return;
     setSubmitting(true);
     setError("");
     try {
@@ -165,7 +159,10 @@ export function BulkTaskDialog({
               )}
             </div>
             <div className="mt-5 flex justify-end">
-              <Button disabled={!hosts.length} onClick={() => setReviewing(true)}>
+              <Button
+                disabled={!hosts.length}
+                onClick={() => setReviewing(true)}
+              >
                 Review {hosts.length} targets
               </Button>
             </div>
@@ -186,7 +183,10 @@ export function BulkTaskDialog({
               </span>
             </div>
             <div className="mt-3 rounded-lg bg-black/20 px-3 py-2 font-mono text-[10px] text-slate-500">
-              Parameters: {Object.keys(parameters).length ? JSON.stringify(parameters) : "none"}
+              Parameters:{" "}
+              {Object.keys(parameters).length
+                ? JSON.stringify(parameters)
+                : "none"}
             </div>
             <div className="mt-4 max-h-60 divide-y divide-line/50 overflow-auto rounded-lg border border-line/70">
               {hosts.map((host) => (
@@ -206,22 +206,11 @@ export function BulkTaskDialog({
                 </div>
               ))}
             </div>
-            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-ashborne-400/20 bg-ashborne-400/[.04] p-3 text-xs leading-5 text-slate-300">
-              <input
-                aria-label="Confirm authorized scope for selected hosts"
-                className="mt-0.5 h-4 w-4 accent-ashborne-400"
-                type="checkbox"
-                checked={scopeConfirmed}
-                onChange={(event) => setScopeConfirmed(event.target.checked)}
-              />
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ashborne-400" />
-              <span>
-                I confirm every selected host is owned by me or explicitly
-                included in the authorized lab scope.
-              </span>
-            </label>
             {error && (
-              <p className="mt-3 rounded-lg border border-red-500/20 bg-red-500/[.06] p-3 text-xs text-red-300" role="alert">
+              <p
+                className="mt-3 rounded-lg border border-red-500/20 bg-red-500/[.06] p-3 text-xs text-red-300"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -229,11 +218,7 @@ export function BulkTaskDialog({
               <Button variant="ghost" onClick={() => setReviewing(false)}>
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
-              <Button
-                loading={submitting}
-                disabled={!scopeConfirmed}
-                onClick={() => void dispatch()}
-              >
+              <Button loading={submitting} onClick={() => void dispatch()}>
                 <Play className="h-4 w-4" /> Run {hosts.length} tasks
               </Button>
             </div>

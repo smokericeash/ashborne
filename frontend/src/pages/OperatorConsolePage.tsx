@@ -1,5 +1,11 @@
 import { CornerDownLeft, ShieldCheck, SquareTerminal } from "lucide-react";
-import { useCallback, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Card, PageHeader, StatusBadge } from "../components/ui";
 import { useAuth } from "../context/useAuth";
@@ -16,16 +22,18 @@ import { api } from "../services/api";
 type ConsoleEntry = {
   id: number;
   command?: string;
+  targetCount?: number;
   tone?: "normal" | "error" | "success";
   lines: string[];
   operationId?: string;
 };
 
 const HELP_LINES = [
-  "Typed host actions: hostname, whoami, id, uname -a, ps aux, ip addr, ip route,",
-  "ss -tulpn, df -h, mount, env, quick-recon, host-recon, priv-enum",
-  "Workspace commands: help, clear, hosts, select-all, deselect-all, tasks, status",
-  "Only recognized aliases map to closed ASHBORNE task types; arbitrary commands never execute.",
+  "Remote host operation: enter a normal Linux command (for example: hostname or uname -a).",
+  "Kali-local tooling: prefix with kali: and use $ASHBORNE_TARGET_IP as the selected target.",
+  'Example: kali:nmap -sV "$ASHBORNE_TARGET_IP"',
+  "Workspace commands: help, clear, hosts, select-all, deselect-all, tasks, status, retry failed",
+  "Every operation remains scoped to selected enrolled hosts, RBAC-controlled, bounded, and audited.",
 ];
 
 export function OperatorConsolePage() {
@@ -37,14 +45,12 @@ export function OperatorConsolePage() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [scopeConfirmed, setScopeConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
+  const [lastOperationId, setLastOperationId] = useState<string | null>(null);
   const [entries, setEntries] = useState<ConsoleEntry[]>([
     {
       id: 0,
-      lines: [
-        'ASHBORNE operator console ready. Type "help" for approved commands.',
-      ],
+      lines: ['ASHBORNE Kali-backed console ready. Type "help" for usage.'],
     },
   ]);
   const nextEntryId = useRef(1);
@@ -63,17 +69,12 @@ export function OperatorConsolePage() {
   const execute = async (raw: string) => {
     const parsed = parseOperatorCommand(raw);
     if (parsed.kind === "empty") return;
+    const commandEntry = {
+      command: raw,
+      targetCount: selection.selectedHosts.length,
+    };
     setHistory((current) => [...current.filter((item) => item !== raw), raw]);
     setHistoryIndex(-1);
-
-    if (parsed.kind === "unsupported") {
-      append({
-        command: raw,
-        tone: "error",
-        lines: ['Unsupported command.', 'Type "help" for available commands.'],
-      });
-      return;
-    }
 
     if (parsed.kind === "local") {
       if (parsed.command === "clear") {
@@ -81,17 +82,19 @@ export function OperatorConsolePage() {
         return;
       }
       if (parsed.command === "help") {
-        append({ command: raw, lines: HELP_LINES });
+        append({ ...commandEntry, lines: HELP_LINES });
         return;
       }
       if (parsed.command === "hosts") {
         append({
-          command: raw,
+          ...commandEntry,
           lines: selection.selectedHosts.length
             ? selection.selectedHosts.map(
                 (host) => `${host.hostname.padEnd(28)} ${host.status}`,
               )
-            : ["No hosts selected. Use select-all or choose hosts on Lab Hosts."],
+            : [
+                "No hosts selected. Use select-all or choose hosts on Lab Hosts.",
+              ],
         });
         return;
       }
@@ -99,30 +102,67 @@ export function OperatorConsolePage() {
         const available = hosts.data?.items ?? [];
         selection.selectHosts(available);
         append({
-          command: raw,
+          ...commandEntry,
           tone: "success",
           lines: [`Selected ${available.length} loaded lab hosts.`],
         });
         return;
       }
-      if (
-        parsed.command === "deselect" ||
-        parsed.command === "deselect-all"
-      ) {
+      if (parsed.command === "deselect" || parsed.command === "deselect-all") {
         selection.clearSelection();
-        append({ command: raw, lines: ["Host selection cleared."] });
+        append({ ...commandEntry, lines: ["Host selection cleared."] });
         return;
       }
       if (parsed.command === "tasks") {
         navigate("/tasks");
         return;
       }
+      if (parsed.command === "retry failed") {
+        if (!lastOperationId) {
+          append({
+            ...commandEntry,
+            tone: "error",
+            lines: ["No previous bulk operation is available to retry."],
+          });
+          return;
+        }
+        setRunning(true);
+        try {
+          const operation = await api.tasks.retryBulkFailed(
+            lastOperationId,
+            true,
+          );
+          setLastOperationId(operation.bulk_operation_id);
+          append({
+            ...commandEntry,
+            tone: "success",
+            lines: [
+              `Retry queued for ${operation.target_count} unsuccessful hosts.`,
+              `Bulk operation ${operation.bulk_operation_id}`,
+            ],
+            operationId: operation.bulk_operation_id,
+          });
+        } catch (caught) {
+          append({
+            ...commandEntry,
+            tone: "error",
+            lines: [
+              caught instanceof Error
+                ? caught.message
+                : "Retry could not be queued.",
+            ],
+          });
+        } finally {
+          setRunning(false);
+        }
+        return;
+      }
       append({
-        command: raw,
+        ...commandEntry,
         lines: [
           `Event stream: ${connected ? "CONNECTED" : "RECONNECTING"}`,
           `Selected hosts: ${selection.selectedHosts.length}`,
-          `Authorization: ${scopeConfirmed ? "CONFIRMED" : "NOT CONFIRMED"}`,
+          "Environment: AUTHORIZED LAB",
         ],
       });
       return;
@@ -130,7 +170,7 @@ export function OperatorConsolePage() {
 
     if (!canIssueTasks(user?.role)) {
       append({
-        command: raw,
+        ...commandEntry,
         tone: "error",
         lines: ["Your role is read-only and cannot issue tasks."],
       });
@@ -138,45 +178,42 @@ export function OperatorConsolePage() {
     }
     if (!selection.selectedHosts.length) {
       append({
-        command: raw,
+        ...commandEntry,
         tone: "error",
         lines: ["No hosts selected. Select hosts before issuing a task."],
       });
       return;
     }
-    if (!scopeConfirmed) {
-      append({
-        command: raw,
-        tone: "error",
-        lines: ["Confirm authorized scope before issuing a task."],
-      });
-      return;
-    }
-
     setRunning(true);
     try {
       const operation = await api.tasks.bulkCreate(
         selection.selectedHosts.map((host) => host.id),
-        parsed.action,
+        "KALI_OPERATION",
         true,
+        {
+          command: parsed.command,
+          execution_mode: parsed.executionMode,
+          timeout_seconds: 120,
+        },
       );
+      setLastOperationId(operation.bulk_operation_id);
       append({
-        command: raw,
+        ...commandEntry,
         tone: "success",
         lines: [
-          `${parsed.action} queued for ${operation.target_count} hosts.`,
+          `${parsed.executionMode === "local" ? "Kali-local" : "SSH"} operation queued for ${operation.target_count} hosts.`,
           `Bulk operation ${operation.bulk_operation_id}`,
         ],
         operationId: operation.bulk_operation_id,
       });
     } catch (caught) {
       append({
-        command: raw,
+        ...commandEntry,
         tone: "error",
         lines: [
           caught instanceof Error
             ? caught.message
-            : "The typed task could not be queued.",
+            : "The Kali-backed operation could not be queued.",
         ],
       });
     } finally {
@@ -208,16 +245,23 @@ export function OperatorConsolePage() {
       const matches = operatorCommandCompletions(input);
       if (matches.length === 1) setInput(matches[0]);
       else if (matches.length > 1)
-        append({ command: input, lines: [matches.join("    ")] });
+        append({
+          command: input,
+          targetCount: selection.selectedHosts.length,
+          lines: [matches.join("    ")],
+        });
+    } else if (event.key.toLowerCase() === "l" && event.ctrlKey) {
+      event.preventDefault();
+      setEntries([]);
     }
   };
 
   return (
     <div className="animate-slide-in">
       <PageHeader
-        eyebrow="Typed operator workflow"
+        eyebrow="Kali-backed operator workflow"
         title="Operator Console"
-        description="Terminal ergonomics over explicit, audited ASHBORNE task types — never an arbitrary shell."
+        description="Audited multi-host operations routed through your explicitly enrolled Kali controller."
         actions={
           <Link to="/agents">
             <Button variant="secondary" size="sm">
@@ -238,17 +282,10 @@ export function OperatorConsolePage() {
               {selection.selectedHosts.length} HOSTS
             </span>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-400">
-            <input
-              aria-label="Confirm authorized scope"
-              className="h-4 w-4 accent-ashborne-400"
-              type="checkbox"
-              checked={scopeConfirmed}
-              onChange={(event) => setScopeConfirmed(event.target.checked)}
-            />
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.12em] text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5 text-ashborne-400" />
-            Authorized scope confirmed
-          </label>
+            Authorized lab
+          </div>
         </div>
 
         <div
@@ -260,7 +297,8 @@ export function OperatorConsolePage() {
               {entry.command && (
                 <p className="text-slate-200">
                   <span className="text-ashborne-400">
-                    ashborne [{selection.selectedHosts.length}] &gt;
+                    ashborne [
+                    {entry.targetCount ?? selection.selectedHosts.length}] &gt;
                   </span>{" "}
                   {entry.command}
                 </p>
@@ -275,7 +313,10 @@ export function OperatorConsolePage() {
                 }
               >
                 {entry.lines.map((line, index) => (
-                  <p key={`${entry.id}-${index}`} className="whitespace-pre-wrap">
+                  <p
+                    key={`${entry.id}-${index}`}
+                    className="whitespace-pre-wrap"
+                  >
                     {line}
                   </p>
                 ))}
@@ -296,7 +337,10 @@ export function OperatorConsolePage() {
           className="flex items-center gap-2 border-t border-line/60 bg-black/20 px-4 py-3 font-mono"
           onSubmit={submit}
         >
-          <label className="shrink-0 text-xs text-ashborne-400" htmlFor="operator-command">
+          <label
+            className="shrink-0 text-xs text-ashborne-400"
+            htmlFor="operator-command"
+          >
             ashborne [{selection.selectedHosts.length}] &gt;
           </label>
           <input
@@ -309,7 +353,12 @@ export function OperatorConsolePage() {
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <Button type="submit" size="sm" disabled={running || !input.trim()} loading={running}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={running || !input.trim()}
+            loading={running}
+          >
             <CornerDownLeft className="h-3.5 w-3.5" /> Run
           </Button>
         </form>
@@ -318,6 +367,7 @@ export function OperatorConsolePage() {
       <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[.12em] text-slate-600">
         <span>Tab autocomplete</span>
         <span>↑ ↓ history</span>
+        <span>Ctrl+L clear</span>
         <span className="flex items-center gap-1">
           Stream <StatusBadge status={connected ? "ONLINE" : "DEGRADED"} />
         </span>

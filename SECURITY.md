@@ -31,7 +31,10 @@ The agent must only be installed with system-owner authorization. It is intentio
 - Enrollment tokens expire, are revocable, and are consumed atomically once.
 - Access tokens are short lived; refresh tokens rotate and old tokens are rejected.
 - Authorization is checked server-side for every protected operation.
-- Tasks are closed-enum lab actions, never command text.
+- Structured tasks remain closed-enum actions. General operation text is accepted only as the
+  `KALI_OPERATION` type and is routed to the explicitly enrolled Kali controller.
+- Kali controller mode is opt-in, visible in inventory, authenticated separately, bounded by
+  timeout/output/concurrency limits, and must use pre-provisioned non-interactive SSH access.
 - Task creation requires an explicit authorized-scope confirmation recorded in audit metadata.
 - Audit records have no update/delete API.
 - Certificate verification is enabled for production agent traffic.

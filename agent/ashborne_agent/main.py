@@ -49,6 +49,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=_env_bool("ASHBORNE_ALLOW_INSECURE_HTTP", False),
         help="allow plain HTTP for an isolated local lab only",
     )
+    enroll.add_argument(
+        "--kali-controller",
+        action="store_true",
+        default=_env_bool("ASHBORNE_KALI_CONTROLLER", False),
+        help="enroll this Linux host as the explicit Kali operation controller",
+    )
+    enroll.add_argument(
+        "--max-parallel-hosts",
+        type=int,
+        default=_env_int("ASHBORNE_MAX_PARALLEL_HOSTS", 10),
+    )
     enroll.add_argument("--force", action="store_true", help="replace an existing credential")
     _add_logging_arguments(enroll)
 
@@ -69,6 +80,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=_env_float("ASHBORNE_HEARTBEAT_INTERVAL"),
     )
     run.add_argument("--poll-interval", type=float, default=_env_float("ASHBORNE_POLL_INTERVAL"))
+    run.add_argument(
+        "--kali-controller",
+        action="store_true",
+        default=_env_bool("ASHBORNE_KALI_CONTROLLER", False),
+        help="enable Kali controller execution for this agent",
+    )
+    run.add_argument(
+        "--max-parallel-hosts",
+        type=int,
+        default=_env_int("ASHBORNE_MAX_PARALLEL_HOSTS", 10),
+    )
     run.add_argument("--once", action="store_true", help="perform one poll cycle and exit")
     _add_logging_arguments(run)
 
@@ -127,6 +149,8 @@ def _enroll(arguments: argparse.Namespace) -> int:
             name=arguments.name or existing.name,
             ca_bundle=arguments.ca_bundle or existing.ca_bundle,
             allow_insecure_http=arguments.allow_insecure_http or existing.allow_insecure_http,
+            kali_controller=arguments.kali_controller or existing.kali_controller,
+            max_parallel_hosts=arguments.max_parallel_hosts,
         )
     else:
         config = AgentConfig.new(
@@ -134,6 +158,8 @@ def _enroll(arguments: argparse.Namespace) -> int:
             name=arguments.name,
             ca_bundle=arguments.ca_bundle,
             allow_insecure_http=arguments.allow_insecure_http,
+            kali_controller=arguments.kali_controller,
+            max_parallel_hosts=arguments.max_parallel_hosts,
         )
         # Persist the UUID before using a one-time token so a retry keeps identity.
         config.save(config_path)
@@ -185,6 +211,8 @@ def _run(arguments: argparse.Namespace) -> int:
 
 
 def _load_run_config(arguments: argparse.Namespace, config_path: Path) -> AgentConfig:
+    kali_controller = bool(getattr(arguments, "kali_controller", False))
+    max_parallel_hosts = int(getattr(arguments, "max_parallel_hosts", 10))
     if config_path.exists():
         config = AgentConfig.load(config_path)
         if arguments.server and arguments.server.rstrip("/") != config.server_url:
@@ -193,6 +221,9 @@ def _load_run_config(arguments: argparse.Namespace, config_path: Path) -> AgentC
             config.heartbeat_interval = arguments.heartbeat_interval
         if arguments.poll_interval is not None:
             config.poll_interval = arguments.poll_interval
+        if kali_controller:
+            config.kali_controller = True
+        config.max_parallel_hosts = max_parallel_hosts
         # Revalidate bounded command-line overrides.
         config.__post_init__()
         return config
@@ -203,6 +234,8 @@ def _load_run_config(arguments: argparse.Namespace, config_path: Path) -> AgentC
         name=arguments.name,
         ca_bundle=arguments.ca_bundle,
         allow_insecure_http=arguments.allow_insecure_http,
+        kali_controller=kali_controller,
+        max_parallel_hosts=max_parallel_hosts,
     )
     if arguments.heartbeat_interval is not None:
         config.heartbeat_interval = arguments.heartbeat_interval
@@ -281,6 +314,16 @@ def _env_float(name: str) -> float | None:
         return float(value)
     except ValueError as exc:
         raise ConfigError(f"{name} must be a number") from exc
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be an integer") from exc
 
 
 if __name__ == "__main__":

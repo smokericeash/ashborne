@@ -15,7 +15,7 @@ Use `Authorization: Bearer <access-token>` on management requests. Do not place 
 | Capability | Administrator | Operator | Viewer |
 |---|:---:|:---:|:---:|
 | View dashboard, agents, tasks | ✓ | ✓ | ✓ |
-| Create authorized single/bulk typed task | ✓ | ✓ | — |
+| Create authorized single/bulk operation | ✓ | ✓ | — |
 | View audit | ✓ | ✓ | ✓ |
 | Generate/revoke enrollment token | ✓ | — | — |
 | Remove agent | ✓ | — | — |
@@ -39,7 +39,7 @@ Heartbeats carry current agent version, monotonic uptime estimate, hostname, obs
 
 ## Task envelopes and transitions
 
-Task creation contains `agent_id`, `task_type`, a small validated `parameters` object, and `authorized_scope_confirmed: true`. The confirmation is retained in the creation audit event. The agent envelope contains the task identity, type, normalized parameters, creation/expiration timestamps, and status; it never contains a command. Polling atomically transitions eligible work from `QUEUED` to `DISPATCHED`, and the assigned agent may start and complete only its own task.
+Task creation contains `agent_id`, `task_type`, a small validated `parameters` object, and `authorized_scope_confirmed: true`. ASHBORNE's browser client supplies this invariant from the authorized-lab workflow instead of asking for a repetitive per-command checkbox. The value is retained in the creation audit event. The agent envelope contains the task identity, type, normalized parameters, creation/expiration timestamps, and status; it never contains a command. Polling atomically transitions eligible work from `QUEUED` to `DISPATCHED`, and the assigned agent may start and complete only its own task.
 
 ```text
 QUEUED ──> DISPATCHED ──> RUNNING ──> SUCCESS
@@ -54,7 +54,7 @@ Result bodies are JSON objects with a completion status and either bounded struc
 ### Bulk operations
 
 `POST /api/v1/tasks/bulk` accepts a unique, bounded `agent_ids` list plus the
-normal typed-task fields and `authorized_scope_confirmed: true`. It creates one
+operation fields and `authorized_scope_confirmed: true`. It creates one
 ordinary task per agent in one transaction and returns a presentation-only
 `bulk_operation_id`. The grouping identifier does not change authorization,
 ownership, dispatch, result, or audit semantics.
@@ -65,13 +65,15 @@ ownership, dispatch, result, or audit semantics.
 - `POST .../{id}/rerun` creates a new operation for all original targets.
 - `POST .../{id}/cancel-queued` cancels only tasks that remain `QUEUED`.
 
-Retry and rerun requests require a fresh authorized-scope confirmation. Every
-created target task receives its own `TASK_CREATED` audit event containing both
-task and bulk IDs; group actions also receive a bulk-operation audit event.
+Retry and rerun requests carry the same server-required lab-scope invariant.
+Every created target task receives its own `TASK_CREATED` audit event containing
+both task and bulk IDs; group actions also receive a bulk-operation audit event.
 
-The browser Operator Console never sends command text to the API. Its exact
-alias parser resolves supported input to a `task_type` and typed parameters,
-then uses the same single/bulk endpoints as the graphical controls.
+The browser Operator Console sends general operation text only as a validated
+`KALI_OPERATION` parameter object. The backend binds each child task to the
+selected target host and routes execution to the configured `kali-controller`
+agent. Existing structured task types continue to use the same endpoints and
+execute on their target agents.
 
 ## Pagination, filtering, and errors
 

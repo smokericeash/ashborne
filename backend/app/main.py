@@ -81,7 +81,8 @@ app = FastAPI(
     summary="Adversary Emulation & Offensive Security Lab Platform",
     description=(
         "Management API for authenticated users and explicitly enrolled ASHBORNE agents. "
-        "Only authorized, typed lab actions are accepted; arbitrary command execution is intentionally unsupported."
+        "Structured actions run on their target agents; audited general operations are routed through an "
+        "explicitly enrolled Kali controller."
     ),
     version=__version__,
     docs_url=None if settings.environment == "production" else "/docs",

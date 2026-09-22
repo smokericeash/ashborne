@@ -70,7 +70,7 @@ class ResultOutbox:
             error_message = value.get("error_message")
             if (
                 not isinstance(task_id, str)
-                or status not in {"SUCCESS", "FAILED"}
+                or status not in {"SUCCESS", "FAILED", "TIMED_OUT"}
                 or (result is not None and not isinstance(result, dict))
                 or (error_message is not None and not isinstance(error_message, str))
             ):

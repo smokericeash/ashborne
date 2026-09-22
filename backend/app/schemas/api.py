@@ -370,7 +370,7 @@ class BulkOperationAction(APIModel):
 
 
 class TaskResultSubmission(APIModel):
-    status: Literal["SUCCESS", "FAILED"]
+    status: Literal["SUCCESS", "FAILED", "TIMED_OUT"]
     result: dict[str, Any] | None = None
     error_message: str | None = Field(default=None, max_length=4096)
 
@@ -382,8 +382,8 @@ class TaskResultSubmission(APIModel):
             raise ValueError("successful tasks require a structured result")
         if self.status == "SUCCESS" and self.error_message:
             raise ValueError("successful tasks cannot include an error message")
-        if self.status == "FAILED" and not self.error_message:
-            raise ValueError("failed tasks require an error message")
+        if self.status != "SUCCESS" and not self.error_message:
+            raise ValueError("unsuccessful tasks require an error message")
         try:
             encoded_result = (
                 json.dumps(self.result, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
@@ -397,9 +397,19 @@ class TaskResultSubmission(APIModel):
         return self
 
 
+class TaskTarget(APIModel):
+    id: str
+    name: str
+    hostname: str
+    username: str
+    ip_address: str | None = None
+
+
 class TaskResponse(APIModel):
     id: str
     agent_id: str
+    executor_agent_id: str | None = None
+    target: TaskTarget
     bulk_operation_id: str | None = None
     agent_name: str | None = None
     task_type: TaskType

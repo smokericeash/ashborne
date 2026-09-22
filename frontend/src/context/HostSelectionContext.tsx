@@ -1,30 +1,45 @@
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import {
-  HostSelectionContext,
-  type SelectedHost,
-} from "./useHostSelection";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { HostSelectionContext, type SelectedHost } from "./useHostSelection";
 
 const STORAGE_KEY = "ashborne.selected-hosts";
+const HOST_STATUSES = new Set(["ONLINE", "DEGRADED", "OFFLINE"]);
+
+function compactHost(host: SelectedHost): SelectedHost {
+  return {
+    id: host.id,
+    name: host.name,
+    hostname: host.hostname,
+    status: host.status,
+  };
+}
+
+function sameHost(left: SelectedHost, right: SelectedHost) {
+  return (
+    left.id === right.id &&
+    left.name === right.name &&
+    left.hostname === right.hostname &&
+    left.status === right.status
+  );
+}
 
 function restoreSelection(): SelectedHost[] {
   try {
     const value = sessionStorage.getItem(STORAGE_KEY);
     const parsed: unknown = value ? JSON.parse(value) : [];
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (host): host is SelectedHost =>
+    const restored = parsed
+      .filter((host): host is SelectedHost =>
         Boolean(
           host &&
-            typeof host === "object" &&
-            typeof (host as SelectedHost).id === "string" &&
-            typeof (host as SelectedHost).hostname === "string",
+          typeof host === "object" &&
+          typeof (host as SelectedHost).id === "string" &&
+          typeof (host as SelectedHost).name === "string" &&
+          typeof (host as SelectedHost).hostname === "string" &&
+          HOST_STATUSES.has((host as SelectedHost).status),
         ),
-    );
+      )
+      .map(compactHost);
+    return [...new Map(restored.map((host) => [host.id, host])).values()];
   } catch {
     return [];
   }
@@ -34,21 +49,27 @@ export function HostSelectionProvider({ children }: { children: ReactNode }) {
   const [selectedHosts, setSelectedHosts] =
     useState<SelectedHost[]>(restoreSelection);
 
-  const update = useCallback((updater: (current: SelectedHost[]) => SelectedHost[]) => {
-    setSelectedHosts((current) => {
-      const next = updater(current);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const update = useCallback(
+    (updater: (current: SelectedHost[]) => SelectedHost[]) => {
+      setSelectedHosts((current) => {
+        const next = updater(current);
+        if (next !== current)
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [],
+  );
 
   const toggleHost = useCallback(
-    (host: SelectedHost) =>
+    (host: SelectedHost) => {
+      const selectedHost = compactHost(host);
       update((current) =>
         current.some((item) => item.id === host.id)
           ? current.filter((item) => item.id !== host.id)
-          : [...current, host],
-      ),
+          : [...current, selectedHost],
+      );
+    },
     [update],
   );
 
@@ -56,8 +77,16 @@ export function HostSelectionProvider({ children }: { children: ReactNode }) {
     (hosts: SelectedHost[]) =>
       update((current) => {
         const selected = new Map(current.map((host) => [host.id, host]));
-        hosts.forEach((host) => selected.set(host.id, host));
-        return [...selected.values()];
+        let changed = false;
+        hosts.forEach((source) => {
+          const host = compactHost(source);
+          const existing = selected.get(host.id);
+          if (!existing || !sameHost(existing, host)) {
+            selected.set(host.id, host);
+            changed = true;
+          }
+        });
+        return changed ? [...selected.values()] : current;
       }),
     [update],
   );

@@ -2,7 +2,7 @@
 
 ## System context
 
-ASHBORNE separates interactive user authentication, machine authentication, task orchestration, and typed lab-action execution. The API is the sole writer to PostgreSQL and the only component that authorizes state transitions. Redis distributes ephemeral live events; PostgreSQL remains the source of truth.
+ASHBORNE separates interactive user authentication, machine authentication, operation orchestration, structured host actions, and Kali-controller execution. The API is the sole writer to PostgreSQL and the only component that authorizes state transitions. Redis distributes ephemeral live events; PostgreSQL remains the source of truth.
 
 ```mermaid
 C4Context
@@ -12,7 +12,7 @@ C4Context
     System_Ext(hosts, "Authorized lab hosts", "Run visible ASHBORNE agents")
     System_Ext(idp, "Secret/TLS infrastructure", "Protects runtime secrets and HTTPS certificates")
     Rel(operator, ashborne, "Uses", "HTTPS")
-    Rel(ashborne, hosts, "Dispatches typed lab actions / receives results", "HTTPS")
+    Rel(ashborne, hosts, "Dispatches structured lab actions / receives results", "HTTPS")
     Rel(idp, ashborne, "Provides secrets and certificates")
 ```
 
@@ -35,7 +35,9 @@ The frontend nginx container is a same-origin gateway in the local deployment. I
 
 1. **Browser → management plane:** untrusted JSON is schema-validated, access tokens are scoped by role, refresh sessions rotate, and security headers constrain browser behavior.
 2. **Agent → management plane:** agent bearer credentials are high-entropy and stored hashed server-side. The referenced agent ID must match the authenticated credential.
-3. **Management plane → agent:** a task contains an enum and bounded typed parameters, never command text. The agent independently validates the enum and chooses a compiled-in handler.
+3. **Management plane → ordinary agent:** a structured task contains an enum and bounded typed parameters. The agent independently validates the enum and chooses a compiled-in handler.
+4. **Management plane → Kali controller:** `KALI_OPERATION` contains bounded command text, mode, and timeout. `executor_agent_id` routes it to the explicitly enrolled controller while `agent_id` remains the selected target used by history, results, and audit.
+5. **Kali controller → selected target:** SSH mode uses a pre-provisioned non-interactive SSH identity. Explicit `kali:` mode runs native Kali tooling locally with validated target metadata in environment variables.
 4. **API → storage:** SQLAlchemy parameterization prevents query interpolation. Audit mutations are only inserts through the application surface.
 5. **Development demo:** its shared bootstrap secret is accepted only when development mode is explicit. It is not a production enrollment mechanism.
 
@@ -95,9 +97,9 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant Agent as ashborne-agent
 
-    Operator->>UI: Choose in-scope host + typed lab action; confirm authorization
-    UI->>API: POST /api/v1/tasks (operator JWT + scope confirmation)
-    API->>API: Enforce role, confirmation, enum, typed parameter schema
+    Operator->>UI: Choose in-scope hosts + structured action or Kali operation
+    UI->>API: POST /api/v1/tasks (operator JWT + lab-scope invariant)
+    API->>API: Enforce role, lab scope, operation schema, target and controller routing
     API->>DB: Insert QUEUED task + TASK_CREATED audit
     Agent->>API: GET /api/v1/agents/{id}/tasks
     API->>DB: Atomically claim task as DISPATCHED

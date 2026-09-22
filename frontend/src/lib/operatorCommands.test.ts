@@ -5,44 +5,36 @@ import {
 } from "./operatorCommands";
 
 describe("operator command parser", () => {
-  it.each([
-    ["hostname", "HOSTNAME"],
-    ["whoami", "CURRENT_USER"],
-    ["id", "LINUX_IDENTITY"],
-    ["uname -a", "LINUX_KERNEL_INFO"],
-    ["ps aux", "PROCESS_INVENTORY"],
-    ["ip addr", "NETWORK_INTERFACES"],
-    ["ip route", "ROUTE_TABLE"],
-    ["ss -tulpn", "NETWORK_CONNECTIONS"],
-    ["df -h", "DISK_USAGE"],
-    ["mount", "LINUX_MOUNTS"],
-    ["env", "SAFE_ENVIRONMENT_OVERVIEW"],
-    ["quick-recon", "QUICK_RECON"],
-    ["host-recon", "HOST_RECON"],
-    ["priv-enum", "PRIVILEGE_ENUMERATION"],
-  ])("maps %s to the typed %s action", (command, action) => {
-    expect(parseOperatorCommand(`  ${command}  `)).toEqual({
-      kind: "action",
-      command,
-      action,
-    });
-  });
+  it.each(["hostname", "whoami", "uname -a", "ps aux", "ip addr"])(
+    "passes %s to the Kali controller as an SSH operation",
+    (command) => {
+      expect(parseOperatorCommand(`  ${command}  `)).toEqual({
+        kind: "operation",
+        command,
+        executionMode: "ssh",
+      });
+    },
+  );
 
-  it("keeps workspace commands local and never treats unknown text as a task", () => {
+  it("keeps workspace commands local and accepts general operations", () => {
     expect(parseOperatorCommand("deselect-all")).toEqual({
       kind: "local",
       command: "deselect-all",
     });
     expect(parseOperatorCommand("curl example.invalid")).toEqual({
-      kind: "unsupported",
+      kind: "operation",
       command: "curl example.invalid",
+      executionMode: "ssh",
+    });
+    expect(parseOperatorCommand("kali:nmap -sV $ASHBORNE_TARGET_IP")).toEqual({
+      kind: "operation",
+      command: "nmap -sV $ASHBORNE_TARGET_IP",
+      executionMode: "local",
     });
   });
 
   it("offers bounded prefix completion", () => {
-    expect(operatorCommandCompletions("quick-r")).toEqual(["quick-recon"]);
-    expect(operatorCommandCompletions("deselect-a")).toEqual([
-      "deselect-all",
-    ]);
+    expect(operatorCommandCompletions("hostn")).toEqual(["hostname"]);
+    expect(operatorCommandCompletions("deselect-a")).toEqual(["deselect-all"]);
   });
 });

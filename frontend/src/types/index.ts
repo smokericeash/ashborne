@@ -137,8 +137,12 @@ export const TASK_TYPES = [
   "PRIVILEGE_ENUMERATION",
   "NETWORK_OVERVIEW",
   "HOST_RECON",
+  "KALI_OPERATION",
 ] as const;
 export type TaskType = (typeof TASK_TYPES)[number];
+export const STRUCTURED_TASK_TYPES = TASK_TYPES.filter(
+  (taskType) => taskType !== "KALI_OPERATION",
+);
 
 export const TASK_CATEGORIES = {
   Recon: [
@@ -166,11 +170,7 @@ export const TASK_CATEGORIES = {
     "LINUX_CAPABILITIES",
     "PRIVILEGE_ENUMERATION",
   ],
-  Files: [
-    "FILE_SYSTEM_OVERVIEW",
-    "LINUX_MOUNTS",
-    "SAFE_ENVIRONMENT_OVERVIEW",
-  ],
+  Files: ["FILE_SYSTEM_OVERVIEW", "LINUX_MOUNTS", "SAFE_ENVIRONMENT_OVERVIEW"],
   Network: [
     "NETWORK_INTERFACES",
     "NETWORK_CONNECTIONS",
@@ -208,12 +208,16 @@ export const TASK_DESCRIPTIONS: Record<TaskType, string> = {
   PING: "Verify the authenticated task round trip.",
   LINUX_KERNEL_INFO: "Report bounded local kernel and platform metadata.",
   LINUX_IDENTITY: "Report local numeric identity and account metadata.",
-  GROUP_MEMBERSHIP: "List bounded local group membership for the agent identity.",
-  LINUX_CAPABILITIES: "Report local Linux capability masks without changing them.",
-  LINUX_MOUNTS: "List bounded local mount metadata without reading file contents.",
+  GROUP_MEMBERSHIP:
+    "List bounded local group membership for the agent identity.",
+  LINUX_CAPABILITIES:
+    "Report local Linux capability masks without changing them.",
+  LINUX_MOUNTS:
+    "List bounded local mount metadata without reading file contents.",
   SAFE_ENVIRONMENT_OVERVIEW:
     "List safe environment variable names while filtering secret-bearing names and all values.",
-  SERVICE_OVERVIEW: "List bounded local service state without controlling services.",
+  SERVICE_OVERVIEW:
+    "List bounded local service state without controlling services.",
   SCHEDULED_ACTIVITY_OVERVIEW:
     "Summarize bounded scheduled-activity metadata without modifying jobs.",
   PRIVILEGE_ENUMERATION:
@@ -221,6 +225,8 @@ export const TASK_DESCRIPTIONS: Record<TaskType, string> = {
   NETWORK_OVERVIEW:
     "Combine bounded interface, route, listener, and connection observations.",
   HOST_RECON: "Collect a bounded host-focused lab reconnaissance summary.",
+  KALI_OPERATION:
+    "Run one audited operation through the enrolled Kali controller for each selected host.",
 };
 
 export const TASK_CATEGORY_BY_TYPE = Object.fromEntries(
@@ -236,6 +242,7 @@ export const TASK_STATUSES = [
   "SUCCESS",
   "FAILED",
   "CANCELLED",
+  "TIMED_OUT",
   "EXPIRED",
 ] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -243,6 +250,14 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export interface AshborneTask {
   id: string;
   agent_id: string;
+  executor_agent_id?: string | null;
+  target?: {
+    id: string;
+    name: string;
+    hostname: string;
+    username: string;
+    ip_address?: string | null;
+  };
   agent_name?: string | null;
   task_type: TaskType;
   parameters?: Record<string, unknown>;

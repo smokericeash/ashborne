@@ -9,7 +9,13 @@ import {
   Tags,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BulkTaskDialog } from "../components/BulkTaskDialog";
 import {
@@ -74,6 +80,8 @@ export function AgentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const selection = useHostSelection();
+  const selectedHostIds = selection.selectedIds;
+  const refreshSelectedHosts = selection.selectHosts;
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -103,7 +111,18 @@ export function AgentsPage() {
     [search, status, tag, sortKey, sortDirection, skip, agentsRevision],
   );
 
-  const agents = useMemo(() => resource.data?.items ?? [], [resource.data?.items]);
+  const agents = useMemo(
+    () => resource.data?.items ?? [],
+    [resource.data?.items],
+  );
+
+  useEffect(() => {
+    const refreshedSelection = agents.filter((agent) =>
+      selectedHostIds.has(agent.id),
+    );
+    if (refreshedSelection.length) refreshSelectedHosts(refreshedSelection);
+  }, [agents, refreshSelectedHosts, selectedHostIds]);
+
   const selectable = canIssueTasks(user?.role);
   const visibleIds = useMemo(() => agents.map((agent) => agent.id), [agents]);
   const selectedVisible = useMemo(
@@ -120,14 +139,17 @@ export function AgentsPage() {
     setSearch(draftSearch.trim());
   };
 
-  const sort = useCallback((column: SortKey) => {
-    if (sortKey === column)
-      setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(column);
-      setSortDirection("asc");
-    }
-  }, [sortKey]);
+  const sort = useCallback(
+    (column: SortKey) => {
+      if (sortKey === column)
+        setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
+      else {
+        setSortKey(column);
+        setSortDirection("asc");
+      }
+    },
+    [sortKey],
+  );
 
   const toggleVisible = useCallback(() => {
     if (allVisibleSelected) selection.deselectHosts(visibleIds);
@@ -417,7 +439,8 @@ export function AgentsPage() {
         <div className="sticky bottom-4 z-20 mt-4 flex flex-col gap-3 rounded-xl border border-ashborne-400/25 bg-[#151315]/95 px-4 py-3 shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-[.14em] text-slate-100">
-              {selection.selectedHosts.length} host{selection.selectedHosts.length === 1 ? "" : "s"} selected
+              {selection.selectedHosts.length} host
+              {selection.selectedHosts.length === 1 ? "" : "s"} selected
             </p>
             <p className="mt-0.5 text-[10px] text-slate-600">
               Selection persists while using task controls and the console.

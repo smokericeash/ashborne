@@ -3,8 +3,9 @@
 `ashborne-agent` is the visible, lightweight endpoint component for **ASHBORNE —
 Adversary Emulation & Offensive Security Lab Platform**. It performs dedicated,
 read-only lab actions for authorized local-host reconnaissance and enumeration.
-It has no general command runner, never invokes a shell, and does not install
-persistence.
+Ordinary agents have no command runner and never invoke a shell. A Linux host can
+be enrolled explicitly as the visible Kali controller for audited general
+operations. The package does not install persistence.
 
 ## Install and enroll
 
@@ -60,6 +61,7 @@ The exact typed-action catalog is:
 - `LISTENING_PORTS`
 - `AGENT_HEALTH`
 - `PING`
+- `KALI_OPERATION` (Kali controller mode only)
 
 Parameters are typed and reject unknown fields. Collection sizes and serialized
 results are capped. Quick Recon is passive and local-only. File actions inspect
@@ -72,6 +74,23 @@ system locations but never read unit, cron, or timer definitions. Unsupported
 platform-specific observations return an explicit `supported: false` result.
 Task results are saved to a permission-restricted outbox before upload, so a
 temporary disconnection does not discard completed work.
+
+## Kali controller mode
+
+Enroll exactly one authorized Kali host as the general operation controller:
+
+```console
+ashborne-agent enroll --server https://ashborne.local --token TOKEN \
+  --kali-controller --max-parallel-hosts 10
+ashborne-agent run --kali-controller --max-parallel-hosts 10
+```
+
+The controller is visibly tagged `kali-controller`. SSH-mode operations use the
+selected host's enrolled username and address with `BatchMode=yes`; provision a
+least-privilege SSH key and known-host entry on Kali before dispatch. `kali:`
+operations run locally under `/bin/bash` and receive `ASHBORNE_TARGET_ID`,
+`ASHBORNE_TARGET_NAME`, `ASHBORNE_TARGET_HOST`, `ASHBORNE_TARGET_IP`, and
+`ASHBORNE_TARGET_USER`. Do not enable controller mode on ordinary agents.
 
 ## Container demo enrollment
 

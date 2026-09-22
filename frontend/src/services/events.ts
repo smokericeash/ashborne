@@ -99,7 +99,11 @@ export function subscribeToEvents(
     }
   };
 
-  void connect();
+  // Deferring one microtask prevents React StrictMode's intentional
+  // mount-cleanup-remount probe from opening a throwaway second stream.
+  queueMicrotask(() => {
+    if (!stopped) void connect();
+  });
   return () => {
     stopped = true;
     controller.abort();

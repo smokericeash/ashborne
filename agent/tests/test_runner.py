@@ -163,3 +163,56 @@ def test_cross_agent_task_is_never_started(tmp_path: Path, agent_config: AgentCo
         service.process_task(task)
     assert client.started == []
     assert client.results == []
+
+
+def test_kali_controller_routes_parallel_results_per_target(
+    tmp_path: Path,
+    agent_config: AgentConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent_config.kali_controller = True
+    agent_config.max_parallel_hosts = 2
+    targets = [str(uuid4()), str(uuid4())]
+    tasks = [
+        PendingTask(
+            str(uuid4()),
+            target_id,
+            "KALI_OPERATION",
+            {"command": "hostname", "execution_mode": "ssh", "timeout_seconds": 5},
+            agent_config.agent_id,
+            {
+                "id": target_id,
+                "name": f"target-{index}",
+                "hostname": f"target-{index}",
+                "username": "lab",
+                "ip_address": f"10.0.0.{index + 10}",
+            },
+        )
+        for index, target_id in enumerate(targets)
+    ]
+
+    def fake_execute(_parameters: object, target: object) -> dict[str, Any]:
+        assert isinstance(target, dict)
+        return {
+            "task_type": "KALI_OPERATION",
+            "collected_at": "2026-09-20T00:00:00Z",
+            "data": {
+                "stdout": target["hostname"],
+                "stderr": "",
+                "result_code": 0,
+                "timed_out": False,
+            },
+        }
+
+    monkeypatch.setattr("ashborne_agent.heartbeat.execute_operation", fake_execute)
+    client = FakeClient(tasks)
+    service = runner(tmp_path, agent_config, client)
+
+    service.run_cycle()
+
+    assert set(client.started) == {task.id for task in tasks}
+    assert {result.status for result in client.results} == {"SUCCESS"}
+    assert {result.result["data"]["stdout"] for result in client.results if result.result} == {
+        "target-0",
+        "target-1",
+    }

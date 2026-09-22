@@ -139,6 +139,7 @@ def primary_ip_address() -> str | None:
 
 def get_system_info(_: dict[str, Any]) -> dict[str, Any]:
     uname = platform.uname()
+    uptime = get_uptime({})
     return {
         "hostname": socket.gethostname(),
         "username": _current_user(),
@@ -151,6 +152,8 @@ def get_system_info(_: dict[str, Any]) -> dict[str, Any]:
         "python_version": platform.python_version(),
         "agent_version": __version__,
         "ip_address": primary_ip_address(),
+        "boot_time": uptime["boot_time"],
+        "uptime_seconds": uptime["uptime_seconds"],
     }
 
 
@@ -197,7 +200,8 @@ def get_security_context(_: dict[str, Any]) -> dict[str, Any]:
         try:
             import ctypes
 
-            elevated = bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
+            windll = vars(ctypes)["windll"]
+            elevated = bool(windll.shell32.IsUserAnAdmin())
         except (AttributeError, OSError):
             elevated = None
 
@@ -725,7 +729,15 @@ def get_uptime(_: dict[str, Any]) -> dict[str, Any]:
 def get_process_inventory(parameters: dict[str, Any]) -> dict[str, Any]:
     limit = parameters.get("limit", 200)
     processes: list[dict[str, Any]] = []
-    attributes = ["pid", "name", "username", "status", "create_time", "memory_percent"]
+    attributes = [
+        "pid",
+        "name",
+        "username",
+        "status",
+        "create_time",
+        "cpu_percent",
+        "memory_percent",
+    ]
     try:
         iterator = psutil.process_iter(attrs=attributes, ad_value=None)
         for process in iterator:
@@ -742,6 +754,7 @@ def get_process_inventory(parameters: dict[str, Any]) -> dict[str, Any]:
                         if isinstance(create_time, (int, float))
                         else None
                     ),
+                    "cpu_percent": _rounded(info.get("cpu_percent")),
                     "memory_percent": _rounded(info.get("memory_percent")),
                 }
             )
@@ -1140,18 +1153,26 @@ def _windows_software(limit: int) -> Iterable[dict[str, str | None]]:
     )
 
     yielded = 0
-    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):  # type: ignore[attr-defined]
+    registry_api = vars(winreg)
+    open_key = registry_api["OpenKey"]
+    query_info_key = registry_api["QueryInfoKey"]
+    enum_key = registry_api["EnumKey"]
+    hives = (
+        registry_api["HKEY_LOCAL_MACHINE"],
+        registry_api["HKEY_CURRENT_USER"],
+    )
+    for hive in hives:
         for registry_path in paths:
             try:
-                root = winreg.OpenKey(hive, registry_path)  # type: ignore[attr-defined]
+                root = open_key(hive, registry_path)
             except OSError:
                 continue
 
             with root:
-                for index in range(winreg.QueryInfoKey(root)[0]):  # type: ignore[attr-defined]
+                for index in range(query_info_key(root)[0]):
                     try:
-                        subkey_name = winreg.EnumKey(root, index)  # type: ignore[attr-defined]
-                        subkey = winreg.OpenKey(root, subkey_name)  # type: ignore[attr-defined]
+                        subkey_name = enum_key(root, index)
+                        subkey = open_key(root, subkey_name)
                         with subkey:
                             name = _registry_value(winreg, subkey, "DisplayName")
                             version = _registry_value(winreg, subkey, "DisplayVersion")

@@ -1,4 +1,4 @@
-import { LockKeyhole, Play, ShieldCheck } from "lucide-react";
+import { LockKeyhole, Play } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../context/useAuth";
 import { useToast } from "../context/useToast";
@@ -25,7 +25,6 @@ export function TaskForm({
   const { user } = useAuth();
   const { notify } = useToast();
   const [taskType, setTaskType] = useState<TaskType>("QUICK_RECON");
-  const [scopeConfirmed, setScopeConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -50,16 +49,11 @@ export function TaskForm({
       setError("Select an approved lab action.");
       return;
     }
-    if (!scopeConfirmed) {
-      setError("Confirm that this host is within your authorized lab scope.");
-      return;
-    }
     setSubmitting(true);
     try {
-      const task = await api.tasks.create(agentId, taskType, scopeConfirmed);
+      const task = await api.tasks.create(agentId, taskType, true);
       notify(`${humanize(taskType)} queued for ${agentName}.`);
       onCreated?.(task);
-      setScopeConfirmed(false);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Task could not be queued.",
@@ -93,26 +87,6 @@ export function TaskForm({
       <p className="mt-2 text-[11px] leading-4 text-slate-500">
         {TASK_DESCRIPTIONS[taskType]}
       </p>
-      <div className="mt-3 flex items-start gap-2 rounded-lg border border-ashborne-400/15 bg-ashborne-400/[.035] p-3">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ashborne-400" />
-        <p className="text-[11px] leading-4 text-slate-500">
-          This request uses a closed task type and validated parameters.
-          ASHBORNE does not provide payload delivery, persistence, stealth
-          controls, or an arbitrary shell.
-        </p>
-      </div>
-      <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-line bg-void/40 p-3 text-[11px] leading-4 text-slate-400">
-        <input
-          className="mt-0.5 h-4 w-4 accent-ashborne-400"
-          type="checkbox"
-          checked={scopeConfirmed}
-          onChange={(event) => setScopeConfirmed(event.target.checked)}
-        />
-        <span>
-          I confirm this enrolled host is owned by me or explicitly included in
-          the authorized lab scope.
-        </span>
-      </label>
       {error && (
         <p
           className="mt-3 rounded-md border border-red-500/20 bg-red-500/[.06] p-2.5 text-xs text-red-300"
@@ -121,12 +95,7 @@ export function TaskForm({
           {error}
         </p>
       )}
-      <Button
-        className="mt-4 w-full"
-        type="submit"
-        loading={submitting}
-        disabled={!scopeConfirmed}
-      >
+      <Button className="mt-4 w-full" type="submit" loading={submitting}>
         <Play className="h-3.5 w-3.5" /> Queue lab action
       </Button>
     </form>

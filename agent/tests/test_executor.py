@@ -45,6 +45,7 @@ EXPECTED_ALLOWLIST = {
     "LISTENING_PORTS",
     "AGENT_HEALTH",
     "PING",
+    "KALI_OPERATION",
 }
 
 
@@ -69,6 +70,8 @@ def test_unknown_or_non_string_task_is_rejected(task_type: object) -> None:
         ("DISK_USAGE", {"all_partitions": "yes"}),
         ("PING", {"message": "x" * 257}),
         ("PING", []),
+        ("KALI_OPERATION", {"command": ""}),
+        ("KALI_OPERATION", {"command": "id", "execution_mode": "other"}),
     ],
 )
 def test_invalid_parameters_are_rejected(task_type: str, parameters: object) -> None:
@@ -81,6 +84,11 @@ def test_parameters_are_normalized() -> None:
     assert validate_task("NETWORK_CONNECTIONS", {}) == {"limit": 200}
     assert validate_task("DISK_USAGE", {}) == {"all_partitions": False}
     assert validate_task("PING", {}) == {"message": None}
+    assert validate_task("KALI_OPERATION", {"command": "hostname"}) == {
+        "command": "hostname",
+        "execution_mode": "ssh",
+        "timeout_seconds": 120,
+    }
 
 
 @pytest.mark.parametrize(

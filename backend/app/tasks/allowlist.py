@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from app.models import TaskType
 
@@ -41,6 +41,22 @@ class PingParameters(BaseModel):
     message: str | None = Field(default=None, max_length=256)
 
 
+class KaliOperationParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command: str = Field(min_length=1, max_length=4096)
+    execution_mode: Literal["ssh", "local"] = "ssh"
+    timeout_seconds: int = Field(default=120, ge=1, le=900)
+
+    @field_validator("command")
+    @classmethod
+    def command_is_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("command cannot be blank")
+        if "\x00" in value:
+            raise ValueError("command cannot contain NUL")
+        return value
+
+
 NO_PARAMETER_TASKS = (
     TaskType.QUICK_RECON,
     TaskType.SYSTEM_INFO,
@@ -74,6 +90,7 @@ PARAMETERIZED_TASKS: dict[TaskType, type[BaseModel]] = {
     TaskType.LISTENING_PORTS: ListeningPortsParameters,
     TaskType.NETWORK_CONNECTIONS: NetworkConnectionsParameters,
     TaskType.PING: PingParameters,
+    TaskType.KALI_OPERATION: KaliOperationParameters,
 }
 ALLOWED_TASKS.update(PARAMETERIZED_TASKS)
 

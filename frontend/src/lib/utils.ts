@@ -6,9 +6,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function parseApiTimestamp(value: string) {
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return new Date(hasTimezone ? value : `${value}Z`);
+}
+
 export function formatDate(value?: string | null, withTime = true) {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = parseApiTimestamp(value);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -18,7 +23,7 @@ export function formatDate(value?: string | null, withTime = true) {
 
 export function formatRelativeTime(value?: string | null) {
   if (!value) return "Never";
-  const timestamp = new Date(value).getTime();
+  const timestamp = parseApiTimestamp(value).getTime();
   if (Number.isNaN(timestamp)) return "Unknown";
   const seconds = Math.round((timestamp - Date.now()) / 1000);
   const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -53,7 +58,7 @@ export function formatBytes(bytes?: number | null) {
 }
 
 export function initials(name?: string | null) {
-  return (name || "K")
+  return (name || "A")
     .split(/\s|@/)
     .filter(Boolean)
     .slice(0, 2)

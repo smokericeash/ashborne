@@ -7,11 +7,35 @@ import httpx
 from app.core.database import SessionLocal
 from app.models import Task
 from tests.conftest import authorization
-from tests.test_enrollment_agents import create_enrolled_agent
+from tests.test_enrollment_agents import create_enrolled_agent, identity
 
 
 async def enroll_agents(client: httpx.AsyncClient, admin_tokens: dict, count: int = 3) -> list[tuple[dict, dict]]:
     return [await create_enrolled_agent(client, admin_tokens) for _ in range(count)]
+
+
+async def enroll_kali_controller(client: httpx.AsyncClient, admin_tokens: dict) -> tuple[dict, dict]:
+    token = await client.post(
+        "/api/v1/enrollment/tokens",
+        headers=authorization(admin_tokens),
+        json={"expires_in_seconds": 600},
+    )
+    assert token.status_code == 201, token.text
+    payload = identity(ip="10.20.30.5")
+    payload.update(
+        {
+            "name": "kali-controller",
+            "hostname": "kali-controller",
+            "username": "kali",
+            "tags": ["lab", "kali-controller"],
+        }
+    )
+    enrolled = await client.post(
+        "/api/v1/enrollment",
+        json={**payload, "token": token.json()["token"]},
+    )
+    assert enrolled.status_code == 201, enrolled.text
+    return payload, enrolled.json()
 
 
 def bulk_payload(agent_ids: list[str], task_type: str = "QUICK_RECON") -> dict:
@@ -108,6 +132,7 @@ async def test_bulk_creation_grouping_listing_scope_rbac_and_audit(
         "SUCCESS": 0,
         "FAILED": 0,
         "CANCELLED": 0,
+        "TIMED_OUT": 0,
         "EXPIRED": 0,
     }
     assert len({task["id"] for task in operation["tasks"]}) == 3
@@ -330,3 +355,100 @@ async def test_new_enumeration_types_are_bounded_no_parameter_actions(
         },
     )
     assert rejected_parameters.status_code == 422
+
+
+async def test_kali_operation_routes_through_controller_and_preserves_per_host_results(
+    client: httpx.AsyncClient,
+    admin_tokens: dict,
+    operator_tokens: dict,
+) -> None:
+    targets = await enroll_agents(client, admin_tokens, count=2)
+    controller_payload, controller = await enroll_kali_controller(client, admin_tokens)
+    target_ids = [payload["agent_id"] for payload, _ in targets]
+    created = await client.post(
+        "/api/v1/tasks/bulk",
+        headers=authorization(operator_tokens),
+        json={
+            "agent_ids": target_ids,
+            "task_type": "KALI_OPERATION",
+            "parameters": {
+                "command": "hostname",
+                "execution_mode": "ssh",
+                "timeout_seconds": 30,
+            },
+            "authorized_scope_confirmed": True,
+        },
+    )
+    assert created.status_code == 201, created.text
+    operation = created.json()
+    assert operation["target_count"] == 2
+    assert {task["executor_agent_id"] for task in operation["tasks"]} == {
+        controller_payload["agent_id"]
+    }
+    assert {task["target"]["id"] for task in operation["tasks"]} == set(target_ids)
+
+    target_headers = {"Authorization": f"Bearer {targets[0][1]['credential']}"}
+    target_poll = await client.get(
+        f"/api/v1/agents/{target_ids[0]}/tasks",
+        headers=target_headers,
+    )
+    assert target_poll.status_code == 200
+    assert target_poll.json()["items"] == []
+
+    controller_headers = {"Authorization": f"Bearer {controller['credential']}"}
+    controller_poll = await client.get(
+        f"/api/v1/agents/{controller_payload['agent_id']}/tasks",
+        headers=controller_headers,
+    )
+    assert controller_poll.status_code == 200, controller_poll.text
+    tasks = controller_poll.json()["items"]
+    assert {task["agent_id"] for task in tasks} == set(target_ids)
+
+    success, timed_out = tasks
+    for task in tasks:
+        started = await client.post(f"/api/v1/tasks/{task['id']}/start", headers=controller_headers)
+        assert started.status_code == 200, started.text
+    completed = await client.post(
+        f"/api/v1/tasks/{success['id']}/result",
+        headers=controller_headers,
+        json={
+            "status": "SUCCESS",
+            "result": {
+                "task_type": "KALI_OPERATION",
+                "data": {"stdout": "lab-01\n", "stderr": "", "result_code": 0},
+            },
+        },
+    )
+    assert completed.status_code == 200, completed.text
+    timeout = await client.post(
+        f"/api/v1/tasks/{timed_out['id']}/result",
+        headers=controller_headers,
+        json={
+            "status": "TIMED_OUT",
+            "result": {
+                "task_type": "KALI_OPERATION",
+                "data": {"stdout": "", "stderr": "timeout", "result_code": 124},
+            },
+            "error_message": "operation exceeded its configured timeout",
+        },
+    )
+    assert timeout.status_code == 200, timeout.text
+
+    details = await client.get(
+        f"/api/v1/tasks/bulk-operations/{operation['bulk_operation_id']}",
+        headers=authorization(operator_tokens),
+    )
+    assert details.json()["status_counts"]["SUCCESS"] == 1
+    assert details.json()["status_counts"]["TIMED_OUT"] == 1
+    failed_task = next(task for task in details.json()["tasks"] if task["status"] == "TIMED_OUT")
+    assert failed_task["result"]["data"]["stderr"] == "timeout"
+    assert failed_task["result"]["data"]["result_code"] == 124
+
+    retried = await client.post(
+        f"/api/v1/tasks/bulk-operations/{operation['bulk_operation_id']}/retry-failed",
+        headers=authorization(operator_tokens),
+        json={"authorized_scope_confirmed": True},
+    )
+    assert retried.status_code == 201, retried.text
+    assert retried.json()["target_count"] == 1
+    assert retried.json()["tasks"][0]["agent_id"] == timed_out["agent_id"]

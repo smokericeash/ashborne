@@ -8,12 +8,12 @@
 
 ASHBORNE is a self-hosted operator console for authorized adversary-emulation,
 red-team lab, and pentesting training workflows. It combines authenticated agent
-enrollment, strongly typed local-host actions, shared task state, live events,
-RBAC, and an immutable audit trail without exposing a general remote shell.
+enrollment, structured local-host actions, Kali-backed general operations,
+shared task state, live events, RBAC, and an immutable audit trail.
 
 > **Authorized lab use only.** Deploy agents only on systems you own or are
-> explicitly authorized to test. Every operator task requires an in-scope
-> confirmation and is written to the audit timeline.
+> explicitly authorized to test. Operator tasking is limited to enrolled lab
+> hosts, typed actions, RBAC-controlled users, and audit-recorded dispatch.
 
 ## Preview
 
@@ -27,16 +27,17 @@ ASHBORNE retains the proven management-plane architecture and changes the
 operator experience from endpoint monitoring to bounded offensive-security
 training. The platform is designed around five principles:
 
-- **Explicit scope:** task creation requires confirmation that the enrolled host
-  is part of an authorized lab.
-- **Typed execution:** the API and agent independently validate a closed action
-  enum and per-action parameter schema.
+- **Explicit scope:** tasking is constrained to enrolled hosts in an authorized
+  lab and remains visible in the operator workflow.
+- **Controlled execution:** structured actions retain independent validation;
+  general operations use one bounded `KALI_OPERATION` contract routed only to
+  the explicitly enrolled Kali controller.
 - **Transparent agents:** no covert transport, masquerading, persistence, or
   security-control bypass is implemented.
 - **Shared operations:** operators see the same lab hosts, task lifecycle,
   structured results, Server-Sent Events (SSE), and timeline.
 - **Accountability:** role-aware actions and immutable audit events retain the
-  actor, target host, task type, source address, and scope confirmation.
+  actor, target host, task type, source address, and lab-scope invariant.
 
 The operator catalog is organized as follows:
 
@@ -58,22 +59,23 @@ payload execution, or arbitrary command dispatch.
 
 The **Lab Hosts** page supports explicit multi-selection, select/deselect all,
 and a compact action bar. A bulk request follows the guarded sequence **select
-hosts → choose a typed action → configure parameters → confirm authorized scope
-→ review targets → run**. The server creates one independent task per selected
-agent. `bulk_operation_id` exists only to group those tasks for presentation;
-each target retains its own task UUID, lifecycle, result, error, timestamps, and
-audit events. Operation views support failed-only retry, queued-task cancellation,
-full rerun, copy, and JSON export.
+hosts → choose a typed action → configure parameters → review targets → run**.
+The server creates one independent task per selected agent. `bulk_operation_id`
+exists only to group those tasks for presentation; each target retains its own
+task UUID, lifecycle, result, error, timestamps, and audit events. Operation
+views support failed-only retry, queued-task cancellation, full rerun, copy, and
+JSON export.
 
 ### Operator Console
 
-The **Operator Console** accepts familiar read-only aliases such as `hostname`,
-`whoami`, `id`, `uname -a`, `ps aux`, `ip addr`, `ip route`, `ss -tulpn`,
-`df -h`, `mount`, `env`, `quick-recon`, `host-recon`, and `priv-enum`. These are
-parsed locally and mapped to the same closed typed-action allowlist used by the
-GUI. It is not a shell: unknown commands are rejected, arguments cannot escape
-their declared mapping, and dispatch still requires target review and scope
-confirmation.
+The **Operator Console** sends normal Linux commands through the enrolled Kali
+controller and its pre-provisioned non-interactive SSH client, once for each
+selected managed host. Prefix an operation with `kali:` to run a native tool on
+the Kali controller; target metadata is exposed through variables such as
+`$ASHBORNE_TARGET_IP`. Dispatch still requires selected enrolled targets,
+operator RBAC, explicit lab-scope confirmation, bounded timeouts/concurrency,
+and immutable task/audit history. Existing structured actions remain available
+from their existing UI workflows.
 
 Results open on a structured **Summary** view with **Raw**, **Timeline**, and
 **Audit** available for verification. Multi-host operations show per-host status
@@ -88,10 +90,14 @@ flowchart TB
     API --> DB[(PostgreSQL)]
     API --> Redis[(Redis coordination)]
     API --> Audit[Immutable audit timeline]
-    API --> Queue[Validated typed-task queue]
-    Agents[Transparent ASHBORNE agents] -->|TLS + agent credential| API
-    Queue -->|Closed action enum| Agents
+    API --> Queue[Audited operation queue]
+    Agents[Managed host agents] -->|TLS + agent credential| API
+    Kali[Kali controller agent] -->|TLS + dedicated credential| API
+    Queue -->|Structured actions| Agents
+    Queue -->|KALI_OPERATION| Kali
+    Kali -->|Native tools / non-interactive SSH| Targets[Selected managed systems]
     Agents -->|Bounded structured result| API
+    Kali -->|stdout / stderr / result code| API
 ```
 
 The existing authentication, RBAC, one-time enrollment, task lifecycle,
@@ -167,8 +173,7 @@ Suggested training flow:
 
 1. Sign in as an operator.
 2. Open **Lab Hosts** and select an online demo host.
-3. Open **Tasks**, choose **Quick Recon**, review the authorization confirmation,
-   and queue the action.
+3. Open **Tasks**, choose **Quick Recon**, and queue the action.
 4. Watch the task move through its lifecycle and inspect the structured result.
 5. Open **Timeline / Audit** and locate the matching `TASK_CREATED`, dispatch,
    start, and completion events.
@@ -236,10 +241,11 @@ docker compose --profile demo config --quiet
 - RBAC separates administrators, operators, and read-only viewers.
 - Enrollment tokens expire, are single-use, and are stored only as hashes.
 - Task types and parameters are validated by both the API and the agent.
-- Operators must confirm authorized scope for each task; the confirmation is
-  included in `TASK_CREATED` audit metadata.
-- The agent contains no subprocess or shell execution surface and accepts no
-  command text or executable paths.
+- Task creation preserves a strict lab-scope invariant in the API contract and
+  records it in `TASK_CREATED` audit metadata.
+- Ordinary agents contain no subprocess or shell execution surface. Only an
+  agent enrolled with `--kali-controller` accepts `KALI_OPERATION`, with bounded
+  timeout, output, and parallelism.
 - Results are structured JSON with collection and size bounds.
 - Data/agent networks remain isolated while the proxy network permits intentional
   loopback host publishing.

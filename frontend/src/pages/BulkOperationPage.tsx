@@ -7,7 +7,6 @@ import {
   Download,
   RefreshCw,
   RotateCw,
-  ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -49,8 +48,9 @@ export function BulkOperationPage() {
   const tasksRevision = useTasksRevision();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [failedOnly, setFailedOnly] = useState(false);
-  const [scopeConfirmed, setScopeConfirmed] = useState(false);
-  const [action, setAction] = useState<"retry" | "cancel" | "rerun" | null>(null);
+  const [action, setAction] = useState<"retry" | "cancel" | "rerun" | null>(
+    null,
+  );
   const resource = useResource(
     () => api.tasks.bulkOperation(id),
     [id, tasksRevision],
@@ -88,15 +88,13 @@ export function BulkOperationPage() {
       } else {
         const next =
           kind === "retry"
-            ? await api.tasks.retryBulkFailed(
-                operation.bulk_operation_id,
-                scopeConfirmed,
-              )
-            : await api.tasks.rerunBulk(
-                operation.bulk_operation_id,
-                scopeConfirmed,
-              );
-        notify(kind === "retry" ? "Failed hosts requeued." : "Operation rerun queued.");
+            ? await api.tasks.retryBulkFailed(operation.bulk_operation_id, true)
+            : await api.tasks.rerunBulk(operation.bulk_operation_id, true);
+        notify(
+          kind === "retry"
+            ? "Failed hosts requeued."
+            : "Operation rerun queued.",
+        );
         navigate(`/bulk-operations/${next.bulk_operation_id}`);
       }
     } catch (caught) {
@@ -118,7 +116,8 @@ export function BulkOperationPage() {
       />
     );
 
-  const hasFailed = operation.status_counts.FAILED > 0;
+  const hasFailed =
+    operation.status_counts.FAILED + operation.status_counts.TIMED_OUT > 0;
   const hasQueued =
     operation.status_counts.QUEUED + operation.status_counts.DISPATCHED > 0;
   const canOperate = canIssueTasks(user?.role);
@@ -144,14 +143,23 @@ export function BulkOperationPage() {
             ["Targets", operation.target_count, "text-slate-100"],
             ["Complete", operation.status_counts.SUCCESS, "text-emerald-300"],
             ["Running", operation.status_counts.RUNNING, "text-slate-200"],
-            ["Failed", operation.status_counts.FAILED, "text-red-300"],
+            [
+              "Failed",
+              operation.status_counts.FAILED +
+                operation.status_counts.TIMED_OUT,
+              "text-red-300",
+            ],
             [
               "Queued",
-              operation.status_counts.QUEUED + operation.status_counts.DISPATCHED,
+              operation.status_counts.QUEUED +
+                operation.status_counts.DISPATCHED,
               "text-slate-300",
             ],
           ].map(([label, value, tone]) => (
-            <div key={String(label)} className="rounded-lg bg-void/50 px-4 py-3">
+            <div
+              key={String(label)}
+              className="rounded-lg bg-void/50 px-4 py-3"
+            >
               <p className="text-[9px] font-semibold uppercase tracking-[.14em] text-slate-600">
                 {label}
               </p>
@@ -171,11 +179,17 @@ export function BulkOperationPage() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => setExpanded(new Set(visibleTasks.map((task) => task.id)))}
+            onClick={() =>
+              setExpanded(new Set(visibleTasks.map((task) => task.id)))
+            }
           >
             Expand all
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setExpanded(new Set())}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setExpanded(new Set())}
+          >
             Collapse all
           </Button>
           <Button
@@ -188,28 +202,22 @@ export function BulkOperationPage() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => saveJson(`ashborne-${operation.bulk_operation_id}.json`, operation)}
+            onClick={() =>
+              saveJson(
+                `ashborne-${operation.bulk_operation_id}.json`,
+                operation,
+              )
+            }
           >
             <Download className="h-3.5 w-3.5" /> Export JSON
           </Button>
         </div>
         {canOperate && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label className="flex items-center gap-2 text-[10px] text-slate-500">
-              <input
-                aria-label="Confirm authorized scope for operation actions"
-                className="h-4 w-4 accent-ashborne-400"
-                type="checkbox"
-                checked={scopeConfirmed}
-                onChange={(event) => setScopeConfirmed(event.target.checked)}
-              />
-              <ShieldCheck className="h-3.5 w-3.5 text-ashborne-400" /> Scope confirmed
-            </label>
             {hasFailed && (
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={!scopeConfirmed}
                 loading={action === "retry"}
                 onClick={() => void perform("retry")}
               >
@@ -228,7 +236,6 @@ export function BulkOperationPage() {
             )}
             <Button
               size="sm"
-              disabled={!scopeConfirmed}
               loading={action === "rerun"}
               onClick={() => void perform("rerun")}
             >
@@ -257,7 +264,11 @@ export function BulkOperationPage() {
                     })
                   }
                 >
-                  {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {open ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-200">

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { api } from "../services/api";
 import { operator, renderWithContexts, viewer } from "../test/render";
-import { TASK_TYPES, type AshborneTask } from "../types";
+import { STRUCTURED_TASK_TYPES, type AshborneTask } from "../types";
 import { TaskForm } from "./TaskForm";
 
 const createdTask: AshborneTask = {
@@ -17,7 +17,7 @@ const createdTask: AshborneTask = {
 };
 
 describe("TaskForm", () => {
-  it("offers only typed lab actions and requires an authorization confirmation", async () => {
+  it("offers only typed lab actions and queues with the lab invariant", async () => {
     const create = vi.spyOn(api.tasks, "create").mockResolvedValue(createdTask);
     const onCreated = vi.fn();
     const user = userEvent.setup();
@@ -39,7 +39,7 @@ describe("TaskForm", () => {
           .getAllByRole("option")
           .map((option) => option.getAttribute("value")),
       ),
-    ).toEqual(new Set(TASK_TYPES));
+    ).toEqual(new Set(STRUCTURED_TASK_TYPES));
     expect(
       screen.queryByRole("textbox", { name: /command/i }),
     ).not.toBeInTheDocument();
@@ -48,12 +48,7 @@ describe("TaskForm", () => {
     const queueButton = screen.getByRole("button", {
       name: "Queue lab action",
     });
-    expect(queueButton).toBeDisabled();
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: /explicitly included in the authorized lab scope/i,
-      }),
-    );
+    expect(queueButton).toBeEnabled();
     await user.click(queueButton);
 
     await waitFor(() =>

@@ -21,6 +21,8 @@ class PendingTask:
     agent_id: str
     task_type: str
     parameters: dict[str, Any]
+    executor_agent_id: str | None = None
+    target: dict[str, Any] | None = None
 
     @classmethod
     def from_api(cls, value: object) -> PendingTask:
@@ -30,6 +32,8 @@ class PendingTask:
         agent_id = value.get("agent_id")
         task_type = value.get("task_type")
         parameters = value.get("parameters", {})
+        executor_agent_id = value.get("executor_agent_id")
+        target = value.get("target")
         if not isinstance(task_id, str):
             raise ProtocolError("task id must be a UUID string")
         if not isinstance(agent_id, str):
@@ -43,7 +47,28 @@ class PendingTask:
             raise ProtocolError("task_type must be a non-empty string")
         if not isinstance(parameters, dict):
             raise ProtocolError("task parameters must be an object")
-        return cls(normalized_task_id, normalized_agent_id, task_type, parameters)
+        normalized_executor_id: str | None = None
+        if executor_agent_id is not None:
+            if not isinstance(executor_agent_id, str):
+                raise ProtocolError("executor_agent_id must be a UUID string")
+            try:
+                normalized_executor_id = str(UUID(executor_agent_id))
+            except ValueError as exc:
+                raise ProtocolError("executor_agent_id must be a valid UUID") from exc
+        if target is not None and not isinstance(target, dict):
+            raise ProtocolError("task target must be an object")
+        return cls(
+            normalized_task_id,
+            normalized_agent_id,
+            task_type,
+            parameters,
+            normalized_executor_id,
+            target,
+        )
+
+    @property
+    def execution_agent_id(self) -> str:
+        return self.executor_agent_id or self.agent_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +84,7 @@ class TaskResult:
         except (ValueError, TypeError) as exc:
             raise ProtocolError("task result id must be a valid UUID") from exc
         object.__setattr__(self, "task_id", normalized)
-        if self.status not in {"SUCCESS", "FAILED"}:
+        if self.status not in {"SUCCESS", "FAILED", "TIMED_OUT"}:
             raise ProtocolError("task result status is invalid")
         if self.result is not None and not isinstance(self.result, dict):
             raise ProtocolError("task result data must be an object")
@@ -69,8 +94,8 @@ class TaskResult:
             raise ProtocolError("successful task results require structured data")
         if self.status == "SUCCESS" and self.error_message:
             raise ProtocolError("successful task results cannot contain an error")
-        if self.status == "FAILED" and not self.error_message:
-            raise ProtocolError("failed task results require an error")
+        if self.status != "SUCCESS" and not self.error_message:
+            raise ProtocolError("unsuccessful task results require an error")
         if self.error_message is not None and len(self.error_message) > MAX_ERROR_MESSAGE_LENGTH:
             raise ProtocolError("task result error exceeds the local length limit")
         if self.result is not None:

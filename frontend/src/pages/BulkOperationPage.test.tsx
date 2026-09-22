@@ -20,6 +20,7 @@ const operation: BulkOperation = {
     SUCCESS: 1,
     FAILED: 1,
     CANCELLED: 0,
+    TIMED_OUT: 0,
     EXPIRED: 0,
   },
   tasks: [
@@ -48,15 +49,18 @@ const operation: BulkOperation = {
 describe("BulkOperationPage", () => {
   it("shows partial failure state and retries failed targets through the grouped endpoint", async () => {
     vi.spyOn(api.tasks, "bulkOperation").mockResolvedValue(operation);
-    const retry = vi
-      .spyOn(api.tasks, "retryBulkFailed")
-      .mockResolvedValue({
-        ...operation,
-        bulk_operation_id: "operation-retry",
-        target_count: 1,
-        status_counts: { ...operation.status_counts, SUCCESS: 0, FAILED: 0, QUEUED: 1 },
-        tasks: [],
-      });
+    const retry = vi.spyOn(api.tasks, "retryBulkFailed").mockResolvedValue({
+      ...operation,
+      bulk_operation_id: "operation-retry",
+      target_count: 1,
+      status_counts: {
+        ...operation.status_counts,
+        SUCCESS: 0,
+        FAILED: 0,
+        QUEUED: 1,
+      },
+      tasks: [],
+    });
     const user = userEvent.setup();
     renderWithContexts(
       <Routes>
@@ -68,12 +72,9 @@ describe("BulkOperationPage", () => {
     expect(await screen.findByText("kali-01")).toBeInTheDocument();
     expect(screen.getByText("lab-02")).toBeInTheDocument();
     expect(screen.getByText("Agent missed its deadline.")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: "Confirm authorized scope for operation actions",
-      }),
-    );
     await user.click(screen.getByRole("button", { name: /Retry failed/ }));
-    await waitFor(() => expect(retry).toHaveBeenCalledWith("operation-1", true));
+    await waitFor(() =>
+      expect(retry).toHaveBeenCalledWith("operation-1", true),
+    );
   });
 });

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
     degraded_threshold_seconds: int = Field(default=60, ge=10, le=86_400)
     offline_threshold_seconds: int = Field(default=300, ge=20, le=604_800)
     task_expiration_seconds: int = Field(default=3_600, ge=60, le=604_800)
+    kali_controller_agent_id: str | None = None
     page_size: int = Field(default=50, ge=1, le=500)
     audit_retention_days: int = Field(default=365, ge=30, le=3_650)
     auto_create_tables: bool = True
@@ -89,6 +91,16 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("kali_controller_agent_id")
+    @classmethod
+    def valid_optional_agent_id(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        try:
+            return str(uuid.UUID(value))
+        except ValueError as exc:
+            raise ValueError("ASHBORNE_KALI_CONTROLLER_AGENT_ID must be a UUID") from exc
 
     @model_validator(mode="after")
     def validate_security(self) -> Settings:

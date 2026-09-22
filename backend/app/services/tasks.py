@@ -40,6 +40,7 @@ async def create_bulk_operation_tasks(
     agents: list[Agent],
     task_type: TaskType,
     parameters: dict[str, Any],
+    executor_agent_id: str | None,
     actor: User,
     lifetime_seconds: int,
     request: Request,
@@ -54,6 +55,7 @@ async def create_bulk_operation_tasks(
     for agent in agents:
         task = Task(
             agent_id=agent.id,
+            executor_agent_id=executor_agent_id,
             bulk_operation_id=bulk_operation_id,
             task_type=task_type,
             parameters=parameters.copy(),
@@ -87,6 +89,7 @@ async def create_bulk_operation_tasks(
             "bulk_operation_id": bulk_operation_id,
             "source_bulk_operation_id": source_bulk_operation_id,
             "task_type": task_type.value,
+            "executor_agent_id": executor_agent_id,
             "target_count": len(tasks),
             "authorized_scope_confirmed": True,
         },
