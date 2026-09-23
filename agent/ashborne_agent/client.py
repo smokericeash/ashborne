@@ -141,8 +141,8 @@ class AshborneClient:
         if len(raw_items) > MAX_TASKS_PER_RESPONSE:
             raise ProtocolError("pending-task response exceeds the local task limit")
         tasks = [PendingTask.from_api(value) for value in raw_items]
-        if any(task.agent_id != self.config.agent_id for task in tasks):
-            raise ProtocolError("server returned a task assigned to another agent")
+        if any(task.execution_agent_id != self.config.agent_id for task in tasks):
+            raise ProtocolError("server returned a task assigned to another execution agent")
         return tasks
 
     def start_task(self, task_id: str) -> dict[str, Any]:

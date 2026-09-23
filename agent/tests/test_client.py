@@ -177,6 +177,44 @@ def test_authenticated_lifecycle_contract(agent_config: AgentConfig) -> None:
     ]
 
 
+def test_controller_accepts_task_for_target_when_it_is_executor(
+    agent_config: AgentConfig,
+) -> None:
+    task_id = str(uuid4())
+    target_id = str(uuid4())
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(
+            200,
+            {
+                "items": [
+                    {
+                        "id": task_id,
+                        "agent_id": target_id,
+                        "executor_agent_id": agent_config.agent_id,
+                        "task_type": "KALI_OPERATION",
+                        "parameters": {"command": "hostname"},
+                        "target": {
+                            "id": target_id,
+                            "name": "lab-target",
+                            "hostname": "lab-target",
+                            "username": "lab",
+                            "ip_address": "10.0.0.10",
+                        },
+                    }
+                ],
+                "count": 1,
+            },
+            request,
+        )
+
+    with AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client:
+        task = client.pending_tasks()[0]
+
+    assert task.agent_id == target_id
+    assert task.execution_agent_id == agent_config.agent_id
+
+
 def test_task_for_another_agent_is_rejected(agent_config: AgentConfig) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return json_response(
@@ -196,7 +234,32 @@ def test_task_for_another_agent_is_rejected(agent_config: AgentConfig) -> None:
 
     with (
         AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client,
-        pytest.raises(ProtocolError, match="another agent"),
+        pytest.raises(ProtocolError, match="another execution agent"),
+    ):
+        client.pending_tasks()
+
+
+def test_task_for_another_executor_is_rejected(agent_config: AgentConfig) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(
+            200,
+            {
+                "items": [
+                    {
+                        "id": str(uuid4()),
+                        "agent_id": agent_config.agent_id,
+                        "executor_agent_id": str(uuid4()),
+                        "task_type": "KALI_OPERATION",
+                        "parameters": {"command": "hostname"},
+                    }
+                ]
+            },
+            request,
+        )
+
+    with (
+        AshborneClient(agent_config, transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(ProtocolError, match="another execution agent"),
     ):
         client.pending_tasks()
 
